@@ -17,6 +17,7 @@ from msd import regMSD
 import movingHx  
 import glob
 from natsort import natsorted, ns
+from pathlib import Path
 
 # print('Enter bacth number:')
 # x = input()
@@ -25,28 +26,16 @@ from natsort import natsorted, ns
 thresvalue_in = 0.8
 # batchNum = "/batch-0" + str(x)
 
-path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\
-            Helical-nanotubes\Light-sheet-OPM\Result-data\
-            20211018a_suc50_h15um"
-# path = r"../../Result-data/"
+path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
+# path = r"/mnt/opm2/20211022_franky/"
 
-# fName = path + "20211004bc_50suc_h30um"
-# fName = path + "20211004bc_50suc_h30um"
-# fName = path + "20211004f_70suc_h15um"
-# fName = path + "20211004g_70suc_h30um" 
-# path = r"../../Result-data/"
-path = r"/mnt/opm2/20211022_franky/"
+# fName = path + "/20211022a_suc40_h15um"
+# fName = path + "/20211022b_suc40_h30um"
+# fName = path + "/20211004bc_50suc_h30um"
+# fName = path + "/20211004bc_50suc_h30um"
+fName = path + "/20211004f_70suc_h15um"
+# fName = path + "/20211004g_70suc_h30um" 
 
-# fName = path + "20211004f_70suc_h15um" 
-fName = path + "20211004g_70suc_h30um" 
-# fName = path + "20211018a_suc50_h15um" 
-# fName = path + "20211018b_suc50_h30um" 
-# fName = path + "20211022a_suc40_h15um"
-# fName = path + "20211022a_suc40_h15um\low-threshold"
-# fName = path + "20211022b_suc40_h30um" 
-
-images = glob.glob(fName + batchNum + '/*.npy')
-# images = glob.glob(fName + batchNum + '/*.npy')
 images = glob.glob(fName + '/*.npy')
 
 start = time.perf_counter()
@@ -54,8 +43,8 @@ start = time.perf_counter()
 for j in range(len(images)):
 
     fileIm = natsorted(glob.glob(images[j] + '/*.npy'))      
-    intensity0 = np.concatenate([np.load(f) for f in fileIm])
-    # intensity0 = da.from_npy_stack(images[j]) # with dask-array
+    # intensity0 = np.concatenate([np.load(f) for f in fileIm])
+    intensity0 = da.from_npy_stack(images[j]) # with dask-array
     intensity = intensity0[:,:,:,:] 
     Nframes = intensity.shape[0]
     
@@ -64,7 +53,7 @@ for j in range(len(images)):
     blobSkel = []; blobBin =[]; blobSize = []
     eigenvec = []; blobRaw = []; xb0 = []
     
-    cm = np.zeros([Nframes,3]); lenfla = np.zeros([Nframes,3]);
+    cm = np.zeros([Nframes,3]); lenfla = np.zeros(Nframes);
     eigenvec = np.zeros([Nframes,3,3]);
     coord = []; sizeAll = np.zeros([Nframes])
     localAxes = np.zeros([Nframes,3,3]);
@@ -72,8 +61,8 @@ for j in range(len(images)):
     
     pxum = 0.115; 
     camExposure_ms = 2
-    sweep_um = 20
-    stepsize_nm = 800
+    sweep_um = 15
+    stepsize_nm = 400
     expTime = 1/ (sweep_um/stepsize_nm * camExposure_ms)
     
     for frame in range(Nframes):
@@ -149,9 +138,10 @@ for j in range(len(images)):
     
         # Print each volume frame has finished
         end = time.perf_counter()
-        print('Folder:',images[j],"(",j+1,"out of",len(images),")",
-              '\n Frame#:',frame,'out of',len(intensity),
-              '\n elapsed (sec):',np.round(end-start,2))
+        print('Folder:',images[j][-40:],"(",j+1,"out of",len(images),")",
+              '\n frame#:',frame,'out of',len(intensity),
+              '\n length (um):', np.round(lenfla[frame],2),
+              '\n elapsed (min):',np.round((end-start)/60,2))
     
     # Save threshold coordinates to external file for further review    
     blobBin = da.from_array(blobBin)
@@ -166,7 +156,6 @@ for j in range(len(images)):
         dyaw[frame] = np.dot(n1[frame], n3[frame+1] - n3[frame])
         
     # can you get EuAng diretly from n1, n2, n3 without integral?
-    # phase unwrapping ...
     EuAng = np.zeros([Nframes,3]);
     for frame in range(Nframes):
         EuAng[frame,0] = np.sum(dpitch[0:frame+1])
@@ -210,11 +199,9 @@ for j in range(len(images)):
     fitCombo = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_combo[0:nData],p0=0.1)
 
     # Compute all parameters
-    lenfla = np.zeros(Nframes)
     radfla = np.zeros(Nframes)
     pitfla = np.zeros(Nframes)
     for i in range(Nframes):
-        lenfla[i] =  (max(xp0[i][:,0])-min(xp0[i][:,0]) ) *pxum
         radfla[i] =  (max(xp0[i][:,2])-min(xp0[i][:,2]) ) *pxum
         pitfla[i] = lenfla[i]/2.5
     
@@ -230,10 +217,11 @@ for j in range(len(images)):
     print("Fit for combo:",fitCombo[0])
     print("Matrix A, B, D for " + fName)
     A, B, D = BernieMatrix(fitN[0]*1e-12,fitRoll[0],fitCombo[0]*1e-6)
-    vis70 = 673 # 70% sucrose, unit: mPa.s (Quintas et al. 2005)
-    vis50 = 15.04 # 50% sucrose, unit: mPa.s (Telis et al. 2005)
-    A2, B2, D2 = BernieMatrix(fitN[0]*1e-12*(vis70),fitRoll[0]*(vis70),\
-                              fitCombo[0]*1e-6*(vis70)) 
+    vis70 = 673     # 70% sucrose, unit: mPa.s (Quintas et al. 2005)
+    vis50 = 15.04   # 50% sucrose, unit: mPa.s (Telis et al. 2005)
+    vis40 = 6.20    # 40% sucrose, unit: mPa.s (Telis et al. 2005)
+    A2, B2, D2 = BernieMatrix(fitN[0]*1e-12*(vis40),fitRoll[0]*(vis40),\
+                              fitCombo[0]*1e-6*(vis40)) 
     print("Propulsion-Matrix (A, B, D):", A, B, D)
     print("70% sucrose adjusted (A, B, D):", A2, B2, D2)
     
