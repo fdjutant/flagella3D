@@ -25,7 +25,11 @@ x = input()
 thresvalue_in = 0.8
 batchNum = "/batch-0" + str(x)
 
-path = r"../../Result-data/"
+path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\
+            Helical-nanotubes\Light-sheet-OPM\Result-data\
+            20211018a_suc50_h15um"
+# path = r"../../Result-data/"
+
 # fName = path + "20211004bc_50suc_h30um"
 # fName = path + "20211004bc_50suc_h30um"
 # fName = path + "20211004f_70suc_h15um"
@@ -33,7 +37,9 @@ path = r"../../Result-data/"
 # fName = path + "20211018a_suc50_h15um" 
 # fName = path + "20211018b_suc50_h30um" 
 # fName = path + "20211022a_suc40_h15um"
+# fName = path + "20211022a_suc40_h15um\low-threshold"
 # fName = path + "20211022b_suc40_h30um" 
+
 images = glob.glob(fName + batchNum + '/*.npy')
 
 start = time.perf_counter()
