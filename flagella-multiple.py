@@ -18,12 +18,12 @@ import movingHx
 import glob
 from natsort import natsorted, ns
 
-print('Enter bacth number:')
-x = input()
+# print('Enter bacth number:')
+# x = input()
 # print('Input threshold value:')
 # thresvalue_in = float(input())
 thresvalue_in = 0.8
-batchNum = "/batch-0" + str(x)
+# batchNum = "/batch-0" + str(x)
 
 path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\
             Helical-nanotubes\Light-sheet-OPM\Result-data\
@@ -34,6 +34,11 @@ path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\
 # fName = path + "20211004bc_50suc_h30um"
 # fName = path + "20211004f_70suc_h15um"
 # fName = path + "20211004g_70suc_h30um" 
+# path = r"../../Result-data/"
+path = r"/mnt/opm2/20211022_franky/"
+
+# fName = path + "20211004f_70suc_h15um" 
+fName = path + "20211004g_70suc_h30um" 
 # fName = path + "20211018a_suc50_h15um" 
 # fName = path + "20211018b_suc50_h30um" 
 # fName = path + "20211022a_suc40_h15um"
@@ -41,6 +46,8 @@ path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\
 # fName = path + "20211022b_suc40_h30um" 
 
 images = glob.glob(fName + batchNum + '/*.npy')
+# images = glob.glob(fName + batchNum + '/*.npy')
+images = glob.glob(fName + '/*.npy')
 
 start = time.perf_counter()
 #%% Go through every folder
@@ -57,7 +64,7 @@ for j in range(len(images)):
     blobSkel = []; blobBin =[]; blobSize = []
     eigenvec = []; blobRaw = []; xb0 = []
     
-    cm = np.zeros([Nframes,3]); 
+    cm = np.zeros([Nframes,3]); lenfla = np.zeros([Nframes,3]);
     eigenvec = np.zeros([Nframes,3,3]);
     coord = []; sizeAll = np.zeros([Nframes])
     localAxes = np.zeros([Nframes,3,3]);
@@ -65,8 +72,8 @@ for j in range(len(images)):
     
     pxum = 0.115; 
     camExposure_ms = 2
-    sweep_um = 15
-    stepsize_nm = 400
+    sweep_um = 20
+    stepsize_nm = 800
     expTime = 1/ (sweep_um/stepsize_nm * camExposure_ms)
     
     for frame in range(Nframes):
