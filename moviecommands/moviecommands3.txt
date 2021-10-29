@@ -1,0 +1,18 @@
+#this is a comment
+From frame 0 to frame 50 shift time by 50
+From frame 0 to frame 50
+-zoom by a factor of 1
+From frame 51 to frame 100 shift time by 0
+From frame 51 to frame 100
+-zoom by a factor of 1
+-rotate by 90 degrees around (0,0,1)
+From frame 101 to frame 150 shift time by 50
+From frame 151 to frame 200
+-zoom by a factor of 1
+-rotate by 90 degrees around (0,0,1)
+From frame 201 to frame 250 shift time by 50
+From frame 251 to frame 300 shift time by 0
+From frame 251 to frame 300
+-zoom by a factor of 1
+-rotate by 180 degrees around (1,0,1)
+From frame 301 to frame 350 shift time by 50

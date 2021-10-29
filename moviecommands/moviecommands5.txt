@@ -1,0 +1,20 @@
+#this is a comment
+# Rotate
+From frame 0 to frame 50 shift time by 0
+From frame 0 to frame 50
+-zoom by a factor of 1
+-rotate by 360 degrees around (0,0,1)
+# Rotate
+From frame 51 to frame 100 shift time by 0
+From frame 51 to frame 100
+-zoom by a factor of 1
+-rotate by 360 degrees around (1,0,0)
+# Rotate to the back view, still
+From frame 101 to frame 150 shift time by 0
+From frame 101 to frame 150
+-zoom by a factor of 1
+-rotate by 90 degrees around (0,0,1)
+# Play on the side
+From frame 151 to frame 200 shift time by 400
+From frame 151 to frame 200
+-zoom by a factor of 1

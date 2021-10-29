@@ -1,0 +1,32 @@
+#this is a comment
+# Play on the front view
+From frame 0 to frame 50 shift time by 250
+From frame 0 to frame 50
+-zoom by a factor of 1
+# Rotate while it is still
+From frame 51 to frame 100 shift time by 0
+From frame 51 to frame 100
+-zoom by a factor of 1
+-rotate by 90 degrees around (0,0,1)
+# Play on the side view
+From frame 101 to frame 150 shift time by 250
+From frame 101 to frame 150
+-zoom by a factor of 1
+# Rotate to the back view, still
+From frame 151 to frame 200 shift time by 0
+From frame 151 to frame 200
+-zoom by a factor of 1
+-rotate by 90 degrees around (0,0,1)
+# Play on the back view
+From frame 201 to frame 250 shift time by 250
+From frame 201 to frame 250
+-zoom by a factor of 1
+# Rotate 180 up
+From frame 251 to frame 300 shift time by 0
+From frame 251 to frame 300
+-zoom by a factor of 1
+-rotate by 90 degrees around (1,0,0)
+# Play on the bottom view
+From frame 301 to frame 350 shift time by 250
+From frame 301 to frame 350
+-zoom by a factor of 1
