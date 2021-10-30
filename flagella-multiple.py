@@ -31,9 +31,11 @@ path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotu
 
 # fName = path + "/20211022a_suc40_h15um"
 # fName = path + "/20211022b_suc40_h30um"
-# fName = path + "/20211004bc_50suc_h30um"
-# fName = path + "/20211004bc_50suc_h30um"
-fName = path + "/20211004f_70suc_h15um"
+# fName = path + "/20211018a_suc50_h15um"
+# fName = path + "/20211018a_suc50_h15um/low-threshold"
+fName = path + "/20211018b_suc50_h30um"
+# fName = path + "/20211018b_suc50_h30um/low-threshold"
+# fName = path + "/20211004f_70suc_h15um"
 # fName = path + "/20211004g_70suc_h30um" 
 
 images = glob.glob(fName + '/*.npy')
@@ -43,8 +45,8 @@ start = time.perf_counter()
 for j in range(len(images)):
 
     fileIm = natsorted(glob.glob(images[j] + '/*.npy'))      
-    # intensity0 = np.concatenate([np.load(f) for f in fileIm])
-    intensity0 = da.from_npy_stack(images[j]) # with dask-array
+    intensity0 = np.concatenate([np.load(f) for f in fileIm])
+    # intensity0 = da.from_npy_stack(images[j]) # with dask-array
     intensity = intensity0[:,:,:,:] 
     Nframes = intensity.shape[0]
     
@@ -143,9 +145,10 @@ for j in range(len(images)):
               '\n length (um):', np.round(lenfla[frame],2),
               '\n elapsed (min):',np.round((end-start)/60,2))
     
-    # Save threshold coordinates to external file for further review    
+    # Save threshold coordinates to external file for further review 
+    fileName = images[j]
     blobBin = da.from_array(blobBin)
-    da.to_npy_stack(fName[:len(fName)-4] + '-threshold.npy',blobBin)      
+    da.to_npy_stack(fileName[:len(fileName)-4] + '-threshold.npy',blobBin)      
 
     # Compute pitch, roll, and yaw 
     n1 = localAxes[:,0]; n2 = localAxes[:,1]; n3 = localAxes[:,2]
@@ -175,7 +178,6 @@ for j in range(len(images)):
     
     # Store all the tracking information
     ate = np.asarray([EuAng, dirAng, cm])
-    fileName = images[j]
     np.save(fileName[:len(fileName)-4] + "-results",ate)
     
     # All the MSD of interest
@@ -220,8 +222,8 @@ for j in range(len(images)):
     vis70 = 673     # 70% sucrose, unit: mPa.s (Quintas et al. 2005)
     vis50 = 15.04   # 50% sucrose, unit: mPa.s (Telis et al. 2005)
     vis40 = 6.20    # 40% sucrose, unit: mPa.s (Telis et al. 2005)
-    A2, B2, D2 = BernieMatrix(fitN[0]*1e-12*(vis40),fitRoll[0]*(vis40),\
-                              fitCombo[0]*1e-6*(vis40)) 
+    A2, B2, D2 = BernieMatrix(fitN[0]*1e-12*(vis50),fitRoll[0]*(vis50),\
+                              fitCombo[0]*1e-6*(vis50)) 
     print("Propulsion-Matrix (A, B, D):", A, B, D)
     print("70% sucrose adjusted (A, B, D):", A2, B2, D2)
     
