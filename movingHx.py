@@ -98,7 +98,7 @@ class createMovHx:
                                     delRoll[i-1] * n2[i-1])
                      
             # set the center of mass
-            CM = origin + (n1[i]+0.25*n2[i]+0.25*n3[i]) * cmFluc[i]
+            CM = origin + (n1[i]+0.25*n2[i]+0.25*n3[i]) * cmFluc[i] # extra constraint not needed
             CMS.append(CM)
 
             # prepare 3D images   
