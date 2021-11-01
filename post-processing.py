@@ -6,15 +6,15 @@ import matplotlib.pyplot as plt
 plt.rcParams['text.usetex'] = True
 plt.rcParams.update({'font.size': 10})
 
-path = r"../../Result-data/"
-xls70_h15 = glob.glob(path + '20211004f_70suc_h15um/done/*-10per.xlsx')
-xls70_h30 = glob.glob(path + '20211004g_70suc_h30um/done/*-10per.xlsx')
+path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
+xls70_h15 = glob.glob(path + '/20211004f_70suc_h15um/done/*.xlsx')
+xls70_h30 = glob.glob(path + '/20211004g_70suc_h30um/done/*.xlsx')
 
-xls50_h15 = glob.glob(path + '20211018a_suc50_h15um/done/*-10per.xlsx')
-xls50_h30 = glob.glob(path + '20211018b_suc50_h30um/done/*-10per.xlsx')
+xls50_h15 = glob.glob(path + '/20211018a_suc50_h15um/done/*.xlsx')
+xls50_h30 = glob.glob(path + '/20211018b_suc50_h30um/done/*.xlsx')
 
-xls40_h15 = glob.glob(path + '20211022a_suc40_h15um/done/*-10per.xlsx')
-xls40_h30 = glob.glob(path + '20211022b_suc40_h30um/done/*-10per.xlsx')
+xls40_h15 = glob.glob(path + '/20211022a_suc40_h15um/done/*.xlsx')
+xls40_h30 = glob.glob(path + '/20211022b_suc40_h30um/done/*.xlsx')
 
 #%% Go through Excel sheets
 # 40% sucrose, h = (15, 30) um from wall
@@ -38,7 +38,7 @@ Dt40_h30 = data40_h30[:,3,1:4];         # translation diffusion
 Dr40_h30 = data40_h30[:,4,1:4];         # rotation diffusion
 Dc40_h30 = data40_h30[:,5,1];           # combo diffusion
 ABD40_h30 = data40_h30[:,6,1:4];        # propulsion matrix A, B, Ds
-ABD40adj_h30 = data40_h30[:,7,1:4];    # propulsion matrix A, B, Ds (adjusted)
+ABD40adj_h30 = data40_h30[:,7,1:4];     # propulsion matrix A, B, Ds (adjusted)
 
 # 50% sucrose, h = (15, 30) um from wall
 data50_h15 = np.ndarray([len(xls50_h15),8,4],dtype=object)
@@ -87,56 +87,56 @@ ABD70_h30 = data70_h30[:,6,1:4];        # propulsion matrix A, B, Ds
 ABD70adj_h30 = data70_h30[:,7,1:4];    # propulsion matrix A, B, Ds
 
 #%% Translation diffusion - individual
-suc_per = str(70)
-geo_h15_mean = geo70_h15_mean
-geo_h30_mean = geo70_h30_mean
-geo_h15_std = geo70_h15_std
-geo_h30_std = geo70_h30_std
-Dt_h15 = Dt70_h15
-Dt_h30 = Dt70_h30
+suc_per = str(40)
+geo_h15_mean = geo40_h15_mean
+geo_h30_mean = geo40_h30_mean
+geo_h15_std = geo40_h15_std
+geo_h30_std = geo40_h30_std
+Dt_h15 = Dt40_h15
+Dt_h30 = Dt40_h30
 
 plt.rcParams.update({'font.size': 10})
 # diffusion_parallel = f(length)
 fig01,ax01 = plt.subplots(dpi=300, figsize=(6,2))
 ax01.errorbar(geo_h15_mean[:,1],Dt_h15[:,0],\
-              xerr=geo_h15_std[:,1]/np.sqrt(len(geo_h15_std)),
+              xerr=geo_h15_std[:,1],
               marker="o",linestyle = 'None',alpha=0.5,capsize=2)
 ax01.errorbar(geo_h30_mean[:,1],Dt_h30[:,0],\
-              xerr=geo_h30_std[:,1]/np.sqrt(len(geo_h30_std)),\
+              xerr=geo_h30_std[:,1],\
               marker="o",linestyle = 'None',alpha=0.5,capsize=2)
 ax01.set_xlabel(r'length [$\mu m$]');
 ax01.set_title('Translation diffusion parallel (' + suc_per + '\% sucrose)')
 ax01.set_ylabel(r'$D_\parallel$ [$\mu m^2$/sec]')
 ax01.legend(["$h = 15~\mu m$", "$h = 30~\mu m$"])
-ax01.set_xlim([4, 12]);
+# ax01.set_xlim([4, 12]);
 
 # diffusion_perpendicular1 = f(length)
 fig02,ax02 = plt.subplots(dpi=300, figsize=(6,2))
 ax02.errorbar(geo_h15_mean[:,1],Dt_h15[:,1],\
-              xerr=geo_h15_std[:,1]/np.sqrt(len(geo_h15_std)),\
+              xerr=geo_h15_std[:,1],\
               marker="o",linestyle = 'None',alpha=0.5,capsize=2)
 ax02.errorbar(geo_h30_mean[:,1],Dt_h30[:,1],\
-              xerr=geo_h30_std[:,1]/np.sqrt(len(geo_h30_std)),\
+              xerr=geo_h30_std[:,1],\
               marker="o",linestyle = 'None',alpha=0.5,capsize=2)
 ax02.set_xlabel(r'length [$\mu m$]');
 ax02.set_title('Translation diffusion perpendicular 1 (' + suc_per + '\% sucrose)')
 ax02.set_ylabel(r'$D_\perp$ [$\mu m^2$/sec]')
 ax02.legend(["$h = 15~\mu m$", "$h = 30~\mu m$"])
-ax02.set_xlim([4, 12]);
+# ax02.set_xlim([4, 12]);
 
 # diffusion_perpendicular2 = f(length)
 fig03,ax03 = plt.subplots(dpi=300, figsize=(6,2))
 ax03.errorbar(geo_h15_mean[:,1],Dt_h15[:,2],\
-              xerr=geo_h15_std[:,1]/np.sqrt(len(geo_h15_std)),\
+              xerr=geo_h15_std[:,1],\
               marker="o",linestyle = 'None',alpha=0.5,capsize=2)
 ax03.errorbar(geo_h30_mean[:,1],Dt_h30[:,2],\
-              xerr=geo_h30_std[:,1]/np.sqrt(len(geo_h30_std)),\
+              xerr=geo_h30_std[:,1],\
               marker="o",linestyle = 'None',alpha=0.5,capsize=2)
 ax03.set_xlabel(r'length [$\mu m$]');
 ax03.set_title('Translation diffusion perpendicular 2 (' + suc_per + '\% sucrose)')
 ax03.set_ylabel(r'$D_\perp$ [$\mu m^2$/sec]')
 ax03.legend(["$h = 15~\mu m$", "$h = 30~\mu m$"])
-ax03.set_xlim([4, 12]);
+# ax03.set_xlim([4, 12]);
 
 #%% diffusion parallel VS perpendiculars
 # 70% sucrose

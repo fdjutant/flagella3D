@@ -31,9 +31,9 @@ path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotu
 
 # fName = path + "/20211022a_suc40_h15um"
 # fName = path + "/20211022b_suc40_h30um"
-# fName = path + "/20211018a_suc50_h15um"
+fName = path + "/20211018a_suc50_h15um"
 # fName = path + "/20211018a_suc50_h15um/low-threshold"
-fName = path + "/20211018b_suc50_h30um"
+# fName = path + "/20211018b_suc50_h30um"
 # fName = path + "/20211018b_suc50_h30um/low-threshold"
 # fName = path + "/20211004f_70suc_h15um"
 # fName = path + "/20211004g_70suc_h30um" 
