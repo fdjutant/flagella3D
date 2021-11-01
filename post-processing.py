@@ -3,14 +3,18 @@ import glob
 import pandas as pd
 from scipy import stats
 import matplotlib.pyplot as plt
+from scipy.special import erf
+from lmfit import Model
+from scipy import stats, optimize
 plt.rcParams['text.usetex'] = True
 plt.rcParams.update({'font.size': 10})
 
+
 path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
-xls70_h15 = glob.glob(path + '/20211004f_70suc_h15um/done/*.xlsx')
+xls70_h15 = glob.glob(path + '/20211004f_70suc_h15um/done/archived-result/*.xlsx')
 xls70_h30 = glob.glob(path + '/20211004g_70suc_h30um/done/*.xlsx')
 
-xls50_h15 = glob.glob(path + '/20211018a_suc50_h15um/done/*.xlsx')
+xls50_h15 = glob.glob(path + '/20211018a_suc50_h15um/done/archived-result/*-10per.xlsx')
 xls50_h30 = glob.glob(path + '/20211018b_suc50_h30um/done/*.xlsx')
 
 xls40_h15 = glob.glob(path + '/20211022a_suc40_h15um/done/*.xlsx')
@@ -23,8 +27,8 @@ for j in range(len(xls40_h15)):
     data40_h15[j] = pd.read_excel(xls40_h15[j], index_col=None).to_numpy()
 geo40_h15_mean = data40_h15[:,0:3,1]    # geo: radius, length, pitch
 geo40_h15_std = data40_h15[:,0:3,2]     
-Dt40_h15 = data40_h15[:,3,1:4];         # translation diffusion
-Dr40_h15 = data40_h15[:,4,1:4];         # rotation diffusion
+Dt40_h15 = data40_h15[:,3,1:4]*1e3;         # translation diffusion
+Dr40_h15 = data40_h15[:,4,1:4]*1e3;         # rotation diffusion
 Dc40_h15 = data40_h15[:,5,1];           # combo diffusion
 ABD40_h15 = data40_h15[:,6,1:4];        # propulsion matrix A, B, Ds
 ABD40adj_h15 = data40_h15[:,7,1:4];    # propulsion matrix A, B, Ds (adjusted)
@@ -34,8 +38,8 @@ for j in range(len(xls40_h30)):
     data40_h30[j] = pd.read_excel(xls40_h30[j], index_col=None).to_numpy()
 geo40_h30_mean = data40_h30[:,0:3,1]    # geo: radius, length, pitch
 geo40_h30_std = data40_h30[:,0:3,2]     
-Dt40_h30 = data40_h30[:,3,1:4];         # translation diffusion
-Dr40_h30 = data40_h30[:,4,1:4];         # rotation diffusion
+Dt40_h30 = data40_h30[:,3,1:4]*1e3;     # translation diffusion
+Dr40_h30 = data40_h30[:,4,1:4]*1e3;         # rotation diffusion
 Dc40_h30 = data40_h30[:,5,1];           # combo diffusion
 ABD40_h30 = data40_h30[:,6,1:4];        # propulsion matrix A, B, Ds
 ABD40adj_h30 = data40_h30[:,7,1:4];     # propulsion matrix A, B, Ds (adjusted)
@@ -57,8 +61,8 @@ for j in range(len(xls50_h30)):
     data50_h30[j] = pd.read_excel(xls50_h30[j], index_col=None).to_numpy()
 geo50_h30_mean = data50_h30[:,0:3,1]    # geo: radius, length, pitch
 geo50_h30_std = data50_h30[:,0:3,2]     
-Dt50_h30 = data50_h30[:,3,1:4];         # translation diffusion
-Dr50_h30 = data50_h30[:,4,1:4];         # rotation diffusion
+Dt50_h30 = data50_h30[:,3,1:4]*1e3;         # translation diffusion
+Dr50_h30 = data50_h30[:,4,1:4]*1e3;         # rotation diffusion
 Dc50_h30 = data50_h30[:,5,1];           # combo diffusion
 ABD50_h30 = data50_h30[:,6,1:4];        # propulsion matrix A, B, Ds
 ABD50adj_h30 = data50_h30[:,7,1:4];    # propulsion matrix A, B, Ds (adjusted)
@@ -69,8 +73,8 @@ for j in range(len(xls70_h15)):
     data70_h15[j] = pd.read_excel(xls70_h15[j], index_col=None).to_numpy()
 geo70_h15_mean = data70_h15[:,0:3,1]    # geo: radius, length, pitch
 geo70_h15_std = data70_h15[:,0:3,2]     
-Dt70_h15 = data70_h15[:,3,1:4];         # translation diffusion
-Dr70_h15 = data70_h15[:,4,1:4];         # rotation diffusion
+Dt70_h15 = data70_h15[:,3,1:4]*1e3;         # translation diffusion
+Dr70_h15 = data70_h15[:,4,1:4]*1e3;         # rotation diffusion
 Dc70_h15 = data70_h15[:,5,1];           # combo diffusion
 ABD70_h15 = data70_h15[:,6,1:4];        # propulsion matrix A, B, Ds
 ABD70adj_h15 = data70_h15[:,7,1:4];    # propulsion matrix A, B, Ds
@@ -80,20 +84,39 @@ for j in range(len(xls70_h30)):
     data70_h30[j] = pd.read_excel(xls70_h30[j], index_col=None).to_numpy()
 geo70_h30_mean = data70_h30[:,0:3,1]    # geo: radius, length, pitch
 geo70_h30_std = data70_h30[:,0:3,2]     
-Dt70_h30 = data70_h30[:,3,1:4];         # translation diffusion
-Dr70_h30 = data70_h30[:,4,1:4];         # rotation diffusion
+Dt70_h30 = data70_h30[:,3,1:4]*1e3;         # translation diffusion
+Dr70_h30 = data70_h30[:,4,1:4]*1e3;         # rotation diffusion
 Dc70_h30 = data70_h30[:,5,1];           # combo diffusion
 ABD70_h30 = data70_h30[:,6,1:4];        # propulsion matrix A, B, Ds
 ABD70adj_h30 = data70_h30[:,7,1:4];    # propulsion matrix A, B, Ds
 
+#%% save to TXT
+header = np.array([['length [um]', 'length-std [um]', 'parallel [um^2/sec]',\
+                   'perpendicular [um^2/sec]','perpendicular 2 [um^2/sec]']])
+
+data40_h15 = np.vstack((geo40_h15_mean[:,1], geo40_h15_std[:,1],Dt40_h15.T)).T
+data40_h30 = np.vstack((geo40_h30_mean[:,1], geo40_h30_std[:,1],Dt40_h30.T)).T
+data50_h15 = np.vstack((geo50_h15_mean[:,1], geo50_h15_std[:,1],Dt50_h15.T)).T
+data50_h30 = np.vstack((geo50_h30_mean[:,1], geo50_h30_std[:,1],Dt50_h30.T)).T
+data70_h15 = np.vstack((geo70_h15_mean[:,1], geo70_h15_std[:,1],Dt70_h15.T)).T
+data70_h30 = np.vstack((geo70_h30_mean[:,1], geo70_h30_std[:,1],Dt70_h30.T)).T
+
+np.savetxt("Dt40_h15.csv", np.concatenate((header,data40_h15)), delimiter=",", fmt='%s')
+np.savetxt("Dt40_h30.csv", np.concatenate((header,data40_h15)), delimiter=",", fmt='%s')
+np.savetxt("Dt50_h15.csv", np.concatenate((header,data50_h15)), delimiter=",", fmt='%s')
+np.savetxt("Dt50_h30.csv", np.concatenate((header,data50_h30)), delimiter=",", fmt='%s')
+np.savetxt("Dt70_h15.csv", np.concatenate((header,data70_h15)), delimiter=",", fmt='%s')
+np.savetxt("Dt70_h30.csv", np.concatenate((header,data70_h30)), delimiter=",", fmt='%s')
+
 #%% Translation diffusion - individual
-suc_per = str(40)
-geo_h15_mean = geo40_h15_mean
-geo_h30_mean = geo40_h30_mean
-geo_h15_std = geo40_h15_std
-geo_h30_std = geo40_h30_std
-Dt_h15 = Dt40_h15
-Dt_h30 = Dt40_h30
+exclude = []
+suc_per = str(70)
+geo_h15_mean = np.delete(geo70_h15_mean,exclude,0)
+geo_h30_mean = np.delete(geo70_h30_mean,[],0)
+geo_h15_std = np.delete(geo70_h15_std,exclude,0)
+geo_h30_std = np.delete(geo70_h30_std,[],0)
+Dt_h15 = np.delete(Dt70_h15,exclude,0)
+Dt_h30 = np.delete(Dt70_h30,[],0)
 
 plt.rcParams.update({'font.size': 10})
 # diffusion_parallel = f(length)
@@ -107,7 +130,7 @@ ax01.errorbar(geo_h30_mean[:,1],Dt_h30[:,0],\
 ax01.set_xlabel(r'length [$\mu m$]');
 ax01.set_title('Translation diffusion parallel (' + suc_per + '\% sucrose)')
 ax01.set_ylabel(r'$D_\parallel$ [$\mu m^2$/sec]')
-ax01.legend(["$h = 15~\mu m$", "$h = 30~\mu m$"])
+ax01.legend(["$h = 15\pm3~\mu m$", "$h = 30\pm3~\mu m$"])
 # ax01.set_xlim([4, 12]);
 
 # diffusion_perpendicular1 = f(length)
@@ -121,7 +144,7 @@ ax02.errorbar(geo_h30_mean[:,1],Dt_h30[:,1],\
 ax02.set_xlabel(r'length [$\mu m$]');
 ax02.set_title('Translation diffusion perpendicular 1 (' + suc_per + '\% sucrose)')
 ax02.set_ylabel(r'$D_\perp$ [$\mu m^2$/sec]')
-ax02.legend(["$h = 15~\mu m$", "$h = 30~\mu m$"])
+ax02.legend(["$h = 15\pm3~\mu m$", "$h = 30\pm3~\mu m$"])
 # ax02.set_xlim([4, 12]);
 
 # diffusion_perpendicular2 = f(length)
@@ -135,8 +158,75 @@ ax03.errorbar(geo_h30_mean[:,1],Dt_h30[:,2],\
 ax03.set_xlabel(r'length [$\mu m$]');
 ax03.set_title('Translation diffusion perpendicular 2 (' + suc_per + '\% sucrose)')
 ax03.set_ylabel(r'$D_\perp$ [$\mu m^2$/sec]')
-ax03.legend(["$h = 15~\mu m$", "$h = 30~\mu m$"])
+ax03.legend(["$h = 15\pm3~\mu m$", "$h = 30\pm3~\mu m$"])
 # ax03.set_xlim([4, 12]);
+
+#%% plot ratio of translation diffusion
+ratio1_h15 = Dt_h15[:,0]/Dt_h15[:,1]
+ratio1_h30 = Dt_h30[:,0]/Dt_h30[:,1]
+ratio2_h15 = Dt_h15[:,0]/Dt_h15[:,2]
+ratio2_h30 = Dt_h30[:,0]/Dt_h30[:,2]
+
+# fit CDF to the raw data
+def gauss_cdf(x, mu, sigma):
+    return 1/2.0 * (1. + erf( (x-mu)/ (sigma*np.sqrt(2.))))
+
+def fitCDF(x):
+    model = Model(gauss_cdf, prefix='g1_')
+    params = model.make_params(g1_mu = 1.5, g1_sigma = 0.5)
+    yaxis = np.linspace(0,1,len(x), endpoint=False)
+    xaxis = np.sort(x)
+    xplot = np.linspace(0,4,1000, endpoint=False)
+    result = model.fit(yaxis,params,x=xaxis)
+    yplot = gauss_cdf(xplot, result.params['g1_mu'].value,\
+                          result.params['g1_sigma'].value)
+    return xplot, yplot
+
+xplot1_h15, yplot1_h15 = fitCDF(ratio1_h15)
+xplot1_h30, yplot1_h30 = fitCDF(ratio1_h30)
+xplot2_h15, yplot2_h15 = fitCDF(ratio2_h15)
+xplot2_h30, yplot2_h30 = fitCDF(ratio2_h30)
+
+# plot them
+plt.rcParams.update({'font.size': 15})
+fig1,ax1 = plt.subplots(dpi=300, figsize=(6,5))
+weights_h15 = np.ones_like(ratio1_h15)/len(ratio1_h15)
+weights_h30 = np.ones_like(ratio1_h30)/len(ratio1_h15)
+ax1.hist(ratio1_h15, 10, weights=weights_h15, facecolor='C0', alpha=0.5)
+ax1.hist(ratio1_h30, 10, weights=weights_h30, facecolor='C1', alpha=0.5)
+ax1.plot(np.sort(ratio1_h15),np.linspace(0,1,len(ratio1_h15),endpoint=False),\
+         'C0o',MarkerSize=3, alpha=0.5)
+ax1.plot(np.sort(ratio1_h30),np.linspace(0,1,len(ratio1_h30),endpoint=False),\
+         'C1o',MarkerSize=3, alpha=0.5)
+ax1.plot(xplot1_h15, yplot1_h15,'C0')
+ax1.plot(xplot1_h30, yplot1_h30,'C1')
+ax1.set_title(r'$D_\parallel / D_{\perp 1}\ -\ $'  + str(suc_per) + '\% sucrose' )
+ax1.set_xlabel(r'$D_\parallel / D_{\perp 1}$');
+ax1.set_ylabel(r'Cumulative Probability')
+ax1.set_ylim([-0.05, 1.1]); ax1.set_xlim([0, 4]);
+ax1.legend(["$h = 15\pm3~\mu m~(n =\ $"+ str(len(Dt_h15)) + r'$)$',\
+            "$h = 30\pm3~\mu m~(n =\ $"+ str(len(Dt_h30)) + r'$)$'])
+# ax1.legend(["$h = 15\pm3~\mu m~(n = $"+ str(len(Dt50_h15)) + r'$)$',\
+#             "$h = 30\pm3~\mu m~(n = $"+ str(len(Dt50_h30)) + r'$)$'])
+
+plt.rcParams.update({'font.size': 15})
+fig2,ax2 = plt.subplots(dpi=300, figsize=(6,5))
+weights_h15 = np.ones_like(ratio2_h15)/len(ratio2_h15)
+weights_h30 = np.ones_like(ratio2_h30)/len(ratio2_h15)
+ax2.hist(ratio2_h15, 10, weights=weights_h15, facecolor='C0', alpha=0.5)
+ax2.hist(ratio2_h30, 10, weights=weights_h30, facecolor='C1', alpha=0.5)
+ax2.plot(np.sort(ratio2_h15),np.linspace(0,1,len(ratio2_h15),endpoint=False),\
+         'C0o',MarkerSize=3, alpha=0.5)
+ax2.plot(np.sort(ratio2_h30),np.linspace(0,1,len(ratio2_h30),endpoint=False),\
+         'C1o',MarkerSize=3, alpha=0.5)
+ax2.plot(xplot2_h15, yplot2_h15,'C0')
+ax2.plot(xplot2_h30, yplot2_h30,'C1')
+ax2.set_title(r'$D_\parallel / D_{\perp 2}\ -\ $'  + str(suc_per) + '\% sucrose' )
+ax2.set_xlabel(r'$D_\parallel / D_{\perp 2}$');
+ax2.set_ylabel(r'Cumulative Probability')
+ax2.set_ylim([-0.05, 1.1]); ax2.set_xlim([0, 4]);
+# ax2.legend(["$h = 15\pm3~\mu m~(n = $"+ str(len(Dt_h15)) + r'$)$',\
+#             "$h = 30\pm3~\mu m~(n = $"+ str(len(Dt_h30)) + r'$)$'])
 
 #%% diffusion parallel VS perpendiculars
 # 70% sucrose
@@ -163,7 +253,7 @@ ax04a.set_title('Translation diffusion (' + str(70) + '\% sucrose)')
 ax04a.set_xticks(xpos)
 ax04a.set_xticklabels(xaxis)
 ax04a.legend()
-ax04a.set_ylim([0, 3.5]);
+# ax04a.set_ylim([0, 3.5]);
 fig04a.tight_layout()
 
 # 50% sucrose
@@ -233,13 +323,13 @@ t70_h30, p70_h30 = stats.ttest_ind(Dt70_h30[:,0],np.concatenate((Dt70_h30[:,1],D
 print('t, p for h = 30 um: ',t70_h30, p70_h30/2)
 
 #%% Rotational diffusion
-suc_per = str(40)
-geo_h15_mean = geo40_h15_mean
-geo_h30_mean = geo40_h30_mean
-geo_h15_std = geo40_h15_std
-geo_h30_std = geo40_h30_std
-Dr_h15 = Dr40_h15
-Dr_h30 = Dr40_h30
+suc_per = str(70)
+geo_h15_mean = geo70_h15_mean
+geo_h30_mean = geo70_h30_mean
+geo_h15_std = geo70_h15_std
+geo_h30_std = geo70_h30_std
+Dr_h15 = Dr70_h15
+Dr_h30 = Dr70_h30
 
 # pitch
 plt.rcParams.update({'font.size': 10})
@@ -285,6 +375,48 @@ ax05c.set_title('Yaw diffusion (' + suc_per + '\% sucrose)')
 ax05c.set_ylabel(r'$Dr$ [$rad^2$/sec]')
 ax05c.legend(["$h = 15~\mu m$", "$h = 30~\mu m$"])
 ax05c.set_xlim([4, 12]);
+
+#%% plot ratio of translation diffusion
+roll_h15 = Dr_h15[:,1]
+roll_h30 = Dr_h30[:,1]
+
+# fit CDF to the raw data
+def gauss_cdf(x, mu, sigma):
+    return 1/2.0 * (1. + erf( (x-mu)/ (sigma*np.sqrt(2.))))
+
+def fitCDF(x):
+    model = Model(gauss_cdf, prefix='g1_')
+    params = model.make_params(g1_mu = 7, g1_sigma = 1)
+    yaxis = np.linspace(0,1,len(x), endpoint=False)
+    xaxis = np.sort(x)
+    xplot = np.linspace(0,30,1000, endpoint=False)
+    result = model.fit(yaxis,params,x=xaxis)
+    yplot = gauss_cdf(xplot, result.params['g1_mu'].value,\
+                          result.params['g1_sigma'].value)
+    return xplot, yplot
+
+xplot1_h15, yplot1_h15 = fitCDF(roll_h15)
+xplot1_h30, yplot1_h30 = fitCDF(roll_h30)
+
+# plot them
+plt.rcParams.update({'font.size': 15})
+fig1,ax1 = plt.subplots(dpi=300, figsize=(6,5))
+weights_h15 = np.ones_like(roll_h15)/len(roll_h15)
+weights_h30 = np.ones_like(roll_h30)/len(roll_h15)
+ax1.hist(roll_h15, 10, weights=weights_h15, facecolor='C0', alpha=0.5)
+ax1.hist(roll_h30, 10, weights=weights_h30, facecolor='C1', alpha=0.5)
+ax1.plot(np.sort(roll_h15),np.linspace(0,1,len(roll_h15),endpoint=False),\
+         'C0o',MarkerSize=3, alpha=0.5)
+ax1.plot(np.sort(roll_h30),np.linspace(0,1,len(roll_h30),endpoint=False),\
+         'C1o',MarkerSize=3, alpha=0.5)
+ax1.plot(xplot1_h15, yplot1_h15,'C0')
+ax1.plot(xplot1_h30, yplot1_h30,'C1')
+ax1.set_title(r'$D_{roll} -\ $'  + str(suc_per) + '\% sucrose' )
+ax1.set_xlabel(r'$D_{roll}$ [$rad^2$/sec]');
+ax1.set_ylabel(r'Cumulative Probability')
+ax1.set_ylim([-0.05, 1.1]); ax1.set_xlim([0, 30]);
+ax1.legend(["$h = 15\pm3~\mu m~(n =\ $"+ str(len(Dr_h15)) + r'$)$',\
+            "$h = 30\pm3~\mu m~(n =\ $"+ str(len(Dr_h30)) + r'$)$'])
 
 #%% rotational diffusion: pitch, roll, yaw
 
