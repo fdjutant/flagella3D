@@ -20,30 +20,31 @@ from natsort import natsorted, ns
 plt.rcParams['text.usetex'] = True
 plt.rcParams.update({'font.size': 10})
 
-path = r"../../Result-data/"
-xls70_h15 = glob.glob(path + '20211004f_70suc_h15um/done/*.xlsx')
-xls70_h30 = glob.glob(path + '20211004g_70suc_h30um/done/*.xlsx')
-npy70_h15 = glob.glob(path + '20211004f_70suc_h15um/done/*-results.npy')
-npy70_h30 = glob.glob(path + '20211004g_70suc_h30um/done/*-results.npy')
+path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
+xls70_h15 = glob.glob(path + '/20211004f_70suc_h15um/done/*.xlsx')
+xls70_h30 = glob.glob(path + '/20211004g_70suc_h30um/done/*.xlsx')
+npy70_h15 = glob.glob(path + '/20211004f_70suc_h15um/done/*-results.npy')
+npy70_h30 = glob.glob(path + '/20211004g_70suc_h30um/done/*-results.npy')
 
-xls50_h15 = glob.glob(path + '20211018a_suc50_h15um/done/*.xlsx')
-xls50_h30 = glob.glob(path + '20211018b_suc50_h30um/done/*.xlsx')
-npy50_h15 = glob.glob(path + '20211018a_suc50_h15um/done/*-results.npy')
-npy50_h30 = glob.glob(path + '20211018b_suc50_h30um/done/*-results.npy')
+xls50_h15 = glob.glob(path + '/20211018a_suc50_h15um/done/*.xlsx')
+xls50_h30 = glob.glob(path + '/20211018b_suc50_h30um/done/*.xlsx')
+npy50_h15 = glob.glob(path + '/20211018a_suc50_h15um/done/*-results.npy')
+npy50_h30 = glob.glob(path + '/20211018b_suc50_h30um/done/*-results.npy')
 
-xls40_h15 = glob.glob(path + '20211022a_suc40_h15um/done/*.xlsx')
-xls40_h30 = glob.glob(path + '20211022b_suc40_h30um/done/*.xlsx')
-npy40_h15 = glob.glob(path + '20211022a_suc40_h15um/done/*-results.npy')
-npy40_h30 = glob.glob(path + '20211022b_suc40_h30um/done/*-results.npy')
+xls40_h15 = glob.glob(path + '/20211022a_suc40_h15um/done/*.xlsx')
+xls40_h30 = glob.glob(path + '/20211022b_suc40_h30um/done/*.xlsx')
+npy40_h15 = glob.glob(path + '/20211022a_suc40_h15um/done/*-results.npy')
+npy40_h30 = glob.glob(path + '/20211022b_suc40_h30um/done/*-results.npy')
 
 vis70 = 673 # 70% sucrose, unit: mPa.s (Quintas et al. 2005)
 vis50 = 15.04 # 50% sucrose, unit: mPa.s (Telis et al. 2005)
 vis40 = 6.20 # 40% sucrose, unit: mPa.s (Telis et al. 2005)
 
-theXLS = xls70_h30
-theNPY = npy70_h30
-vis = vis70
-sur_per = str(70)
+theXLS = xls40_h15
+theNPY = npy40_h15
+vis = vis40
+sur_per = str(40)
+rData = 0.1
 
 #%% Recompute diffusion coefficient from tracking
 
@@ -53,7 +54,7 @@ camExposure_ms = 2
 sweep_um = 15
 stepsize_nm = 400
 expTime = 1e-3/ (sweep_um/stepsize_nm * camExposure_ms) # in sec
-j = 0; rData = 0.1;
+j = 0;
 
 # Go through every data sets
 # for j in range(1):

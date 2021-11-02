@@ -47,8 +47,8 @@ if simORreal: # synthetic data
         
     print('--synthetic data creation is completed--')
 else:
-    path = r"../../Result-data/"
-    fName = path + '20211022a_suc40_h15um/done/suc40-h15-03-A.npy'
+    path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
+    fName = path + '/20211022d_suc70_h30um/suc70-h30-23-A.npy'
     
     intensity0 = da.from_npy_stack(fName)
     intensity = intensity0[:,:,:,:] 
@@ -70,11 +70,11 @@ eigenvec = np.zeros([Nframes,3,3]);
 coord = [];
 localAxes = np.zeros([Nframes,3,3]);
 endpt = np.zeros([Nframes]).astype('int')
-
+    
 pxum = 0.115
 start = time.perf_counter()
 
-for frame in range(100):
+for frame in range(1):
 
     if simORreal:
         # Extract coordinates from the image
@@ -99,7 +99,7 @@ for frame in range(100):
     else:
         # Image processing
         tstart_thresh = time.perf_counter()
-        thresvalue = 0.7; sizes = 0;    
+        thresvalue = 0.8; sizes = 0;    
         fromImgPro = imProcess.ImPro(intensity[frame],thresvalue)
         img = fromImgPro.thresVol()                     # binary image
         sizes = max(fromImgPro.selectLargest()[0])    # largest body only
@@ -174,19 +174,18 @@ for frame in range(100):
 
 # write blobBin external file as Numpy array
 blobBin = da.from_array(blobBin)
-da.to_npy_stack(fName[:len(fName)-4] + '-threshold.npy',blobBin)  
+# da.to_npy_stack(fName[:len(fName)-4] + '-threshold.npy',blobBin)  
 
 # Reload movies to check
-checknpy = 0
+checknpy = 1
 makeMov = 0
 if checknpy:
-    # blobBin = da.from_array(blobBin)
 
     viewer = napari.Viewer(ndisplay=3)
     viewer.add_image(intensity, contrast_limits=[100,200],\
                      scale=[0.115,.115,.115],\
                       multiscale=False,colormap='gray',opacity=1)  
-    viewer.add_image(test, contrast_limits=[0,1],\
+    viewer.add_image(blobBin, contrast_limits=[0,1],\
                       scale=[0.115,.115,.115],\
                       multiscale=False,colormap='green',opacity=0.5) 
     viewer.scale_bar.visible=True

@@ -4,18 +4,20 @@ import dask.array as da
 from dask.array import from_zarr
 from naparimovie import Movie
 import numpy as np
+import os.path
     
 dataNum = "30"
 
-filepath = r"../../Snouty-data/"
-folderName = "2021-10-22/suc40-h30/data-" +\
-                dataNum + "/deskew_output/zarr/"
-fileName = "suc40-h30"
-resultPath = r"../../Result-data/"
+filepath = r"C:\\Users\\labuser\\Dropbox (ASU)\\Research\\DNA-Rotary-Motor\\Helical-nanotubes\\Light-sheet-OPM\\Snouty-data"
+folderName = "/2021-10-22/suc70-h30/data-" +\
+                dataNum + "/deskew_output/zarr"
+# C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Snouty-data\2021-10-22\suc70-h15\data-21\deskew_output\zarr\suc70-h15_zarr.zarr\opm_data
+fileName = "/suc70-h30"
+resultPath = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
 
 # input Zarr and convert to dask
 inputZarr = from_zarr(filepath + folderName + fileName +\
-                      "_zarr.zarr/opm_data")
+                      "_zarr.zarr\\opm_data")
 stack = da.stack(inputZarr,axis=1)
 
 # show in Napari    
@@ -24,8 +26,8 @@ viewer.add_image(stack, contrast_limits=[130,200],colormap='gray')
 napari.run()
 
 #%% To check in small box
-yC1 = 167; xC1 = 594;
-# yC1 = 241; xC1 = 1450;
+yC1 = 181; xC1 = 822;
+# yC1 = 108; xC1 = 716;
 
 top = 75; bottom = 75; left = 75; right = 75;
 yout1 = stack[0,:,:, yC1-top:yC1+bottom, xC1-left:xC1+right];
@@ -35,7 +37,7 @@ viewer.add_image(yout1, contrast_limits=[130,200],colormap='gray',opacity=1)
 napari.run()
     
 #%% To slice time steps
-tL1 = 0; tR1 = 399;
+tL1 = 0; tR1 = 400;
 # tL2 = 150; tR2 = 399;
 # tL3 = 300; tR3 = 399;
 # yout1 = np.concatenate((

@@ -19,26 +19,33 @@ import glob
 from natsort import natsorted, ns
 from pathlib import Path
 
-# print('Enter bacth number:')
-# x = input()
-# print('Input threshold value:')
-# thresvalue_in = float(input())
-thresvalue_in = 0.8
-# batchNum = "/batch-0" + str(x)
-
 path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
 # path = r"/mnt/opm2/20211022_franky/"
 
 # fName = path + "/20211022a_suc40_h15um"
 # fName = path + "/20211022b_suc40_h30um"
-fName = path + "/20211018a_suc50_h15um"
-# fName = path + "/20211018a_suc50_h15um/low-threshold"
+# fName = path + "/20211018a_suc50_h15um"
 # fName = path + "/20211018b_suc50_h30um"
-# fName = path + "/20211018b_suc50_h30um/low-threshold"
 # fName = path + "/20211004f_70suc_h15um"
 # fName = path + "/20211004g_70suc_h30um" 
+fName = path + "/20211022c_suc70_h15um"
+# fName = path + "/20211022d_suc70_h30um" 
 
 images = glob.glob(fName + '/*.npy')
+
+# Parameters
+pxum = 0.115; 
+camExposure_ms = 2
+sweep_um = 15
+stepsize_nm = 400
+expTime = 1/ (sweep_um/stepsize_nm * camExposure_ms)
+thresvalue_in = 0.8
+
+vis70 = 673 # 70% sucrose, unit: mPa.s (Quintas et al. 2005)
+vis50 = 15.04 # 50% sucrose, unit: mPa.s (Telis et al. 2005)
+vis40 = 6.20 # 40% sucrose, unit: mPa.s (Telis et al. 2005)
+suc_per = str(70)
+vis = vis70
 
 start = time.perf_counter()
 #%% Go through every folder
@@ -60,13 +67,7 @@ for j in range(len(images)):
     coord = []; sizeAll = np.zeros([Nframes])
     localAxes = np.zeros([Nframes,3,3]);
     endpt = np.zeros([Nframes]).astype('int')
-    
-    pxum = 0.115; 
-    camExposure_ms = 2
-    sweep_um = 15
-    stepsize_nm = 400
-    expTime = 1/ (sweep_um/stepsize_nm * camExposure_ms)
-    
+        
     for frame in range(Nframes):
     
         tstart_thresh = time.perf_counter()
@@ -219,13 +220,10 @@ for j in range(len(images)):
     print("Fit for combo:",fitCombo[0])
     print("Matrix A, B, D for " + fName)
     A, B, D = BernieMatrix(fitN[0]*1e-12,fitRoll[0],fitCombo[0]*1e-6)
-    vis70 = 673     # 70% sucrose, unit: mPa.s (Quintas et al. 2005)
-    vis50 = 15.04   # 50% sucrose, unit: mPa.s (Telis et al. 2005)
-    vis40 = 6.20    # 40% sucrose, unit: mPa.s (Telis et al. 2005)
-    A2, B2, D2 = BernieMatrix(fitN[0]*1e-12*(vis50),fitRoll[0]*(vis50),\
-                              fitCombo[0]*1e-6*(vis50)) 
-    print("Propulsion-Matrix (A, B, D):", A, B, D)
-    print("70% sucrose adjusted (A, B, D):", A2, B2, D2)
+    A2, B2, D2 = BernieMatrix(fitN[0]*1e-12*(vis),fitRoll[0]*(vis),\
+                              fitCombo[0]*1e-6*(vis)) 
+    print('A, B, D:', A, B, D)
+    print("A, B, D (adjusted '+ sur_per + '\% sucrose):", A2, B2, D2)
     
     # print to excel
     data = [['number of frames', Nframes],\
@@ -236,7 +234,7 @@ for j in range(len(images)):
             ['rotation-fit [rad^2/sec^2]',fitPitch[0][0], fitRoll[0][0], fitYaw[0][0]],\
             ['combo-fit [um.rad/sec^2]',fitCombo[0][0]],\
             ['A, B, D', A[0], B[0], D[0]],\
-            ['A, B, D (adjusted 70% sucrose)', A2[0], B2[0], D2[0]]\
+            ['A, B, D (adjusted '+ sur_per + '\% sucrose)', A2[0], B2[0], D2[0]]\
                 ]
     df = pd.DataFrame(data)
     df.to_excel(fileName[:len(fileName)-4] + '.xlsx', index = False, header = False)  
