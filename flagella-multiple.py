@@ -223,7 +223,7 @@ for j in range(len(images)):
     A2, B2, D2 = BernieMatrix(fitN[0]*1e-12*(vis),fitRoll[0]*(vis),\
                               fitCombo[0]*1e-6*(vis)) 
     print('A, B, D:', A, B, D)
-    print("A, B, D (adjusted '+ sur_per + '\% sucrose):", A2, B2, D2)
+    print("A, B, D (adjusted '+ suc_per + '\% sucrose):", A2, B2, D2)
     
     # print to excel
     data = [['number of frames', Nframes],\
@@ -234,7 +234,7 @@ for j in range(len(images)):
             ['rotation-fit [rad^2/sec^2]',fitPitch[0][0], fitRoll[0][0], fitYaw[0][0]],\
             ['combo-fit [um.rad/sec^2]',fitCombo[0][0]],\
             ['A, B, D', A[0], B[0], D[0]],\
-            ['A, B, D (adjusted '+ sur_per + '\% sucrose)', A2[0], B2[0], D2[0]]\
+            ['A, B, D (adjusted '+ suc_per + '\% sucrose)', A2[0], B2[0], D2[0]]\
                 ]
     df = pd.DataFrame(data)
     df.to_excel(fileName[:len(fileName)-4] + '.xlsx', index = False, header = False)  

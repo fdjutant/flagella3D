@@ -7,12 +7,18 @@ from scipy.special import erf
 from lmfit import Model
 from scipy import stats, optimize
 plt.rcParams['text.usetex'] = True
-plt.rcParams.update({'font.size': 10})
-
+# plt.rcParams.update({'font.size': 10})
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica"]})
 
 path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
-xls70_h15 = glob.glob(path + '/20211004f_70suc_h15um/done/*-10per.xlsx')
-xls70_h30 = glob.glob(path + '/20211004g_70suc_h30um/done/*-10per.xlsx')
+# xls70_h15_old = glob.glob(path + '/20211004f_70suc_h15um/done/*-10per.xlsx')
+# xls70_h30_old = glob.glob(path + '/20211004g_70suc_h30um/done/*-10per.xlsx')
+
+xls70_h15 = glob.glob(path + '/20211022c_suc70_h15um/done/*-10per.xlsx')
+xls70_h30 = glob.glob(path + '/20211022d_suc70_h30um/done/*-10per.xlsx')
 
 xls50_h15 = glob.glob(path + '/20211018a_suc50_h15um/done/*-10per.xlsx')
 xls50_h30 = glob.glob(path + '/20211018b_suc50_h30um/done/*-10per.xlsx')
@@ -31,14 +37,14 @@ Dt40_h15 = data40_h15[:,3,1:4];         # translation diffusion
 Dr40_h15 = data40_h15[:,4,1:4];         # rotation diffusion
 Dc40_h15 = data40_h15[:,5,1];           # combo diffusion
 ABD40_h15 = data40_h15[:,6,1:4];        # propulsion matrix A, B, Ds
-ABD40adj_h15 = data40_h15[:,7,1:4];    # propulsion matrix A, B, Ds (adjusted)
+ABD40adj_h15 = data40_h15[:,7,1:4];     # propulsion matrix A, B, Ds (adjusted)
 
 data40_h30 = np.ndarray([len(xls40_h30),8,4],dtype=object)
 for j in range(len(xls40_h30)):
     data40_h30[j] = pd.read_excel(xls40_h30[j], index_col=None).to_numpy()
 geo40_h30_mean = data40_h30[:,0:3,1]    # geo: radius, length, pitch
 geo40_h30_std = data40_h30[:,0:3,2]     
-Dt40_h30 = data40_h30[:,3,1:4];     # translation diffusion
+Dt40_h30 = data40_h30[:,3,1:4];         # translation diffusion
 Dr40_h30 = data40_h30[:,4,1:4];         # rotation diffusion
 Dc40_h30 = data40_h30[:,5,1];           # combo diffusion
 ABD40_h30 = data40_h30[:,6,1:4];        # propulsion matrix A, B, Ds
@@ -54,7 +60,7 @@ Dt50_h15 = data50_h15[:,3,1:4];         # translation diffusion
 Dr50_h15 = data50_h15[:,4,1:4];         # rotation diffusion
 Dc50_h15 = data50_h15[:,5,1];           # combo diffusion
 ABD50_h15 = data50_h15[:,6,1:4];        # propulsion matrix A, B, Ds
-ABD50adj_h15 = data50_h15[:,7,1:4];    # propulsion matrix A, B, Ds (adjusted)
+ABD50adj_h15 = data50_h15[:,7,1:4];     # propulsion matrix A, B, Ds (adjusted)
 
 data50_h30 = np.ndarray([len(xls50_h30),8,4],dtype=object)
 for j in range(len(xls50_h30)):
@@ -77,7 +83,7 @@ Dt70_h15 = data70_h15[:,3,1:4];         # translation diffusion
 Dr70_h15 = data70_h15[:,4,1:4];         # rotation diffusion
 Dc70_h15 = data70_h15[:,5,1];           # combo diffusion
 ABD70_h15 = data70_h15[:,6,1:4];        # propulsion matrix A, B, Ds
-ABD70adj_h15 = data70_h15[:,7,1:4];    # propulsion matrix A, B, Ds
+ABD70adj_h15 = data70_h15[:,7,1:4];     # propulsion matrix A, B, Ds
 
 data70_h30 = np.ndarray([len(xls70_h30),8,4],dtype=object)
 for j in range(len(xls70_h30)):
@@ -88,7 +94,7 @@ Dt70_h30 = data70_h30[:,3,1:4];         # translation diffusion
 Dr70_h30 = data70_h30[:,4,1:4];         # rotation diffusion
 Dc70_h30 = data70_h30[:,5,1];           # combo diffusion
 ABD70_h30 = data70_h30[:,6,1:4];        # propulsion matrix A, B, Ds
-ABD70adj_h30 = data70_h30[:,7,1:4];    # propulsion matrix A, B, Ds
+ABD70adj_h30 = data70_h30[:,7,1:4];     # propulsion matrix A, B, Ds
 
 #%% save to TXT
 header = np.array([['length [um]', 'length-std [um]', 'parallel [um^2/sec]',\
@@ -101,24 +107,23 @@ data50_h30 = np.vstack((geo50_h30_mean[:,1], geo50_h30_std[:,1],Dt50_h30.T)).T
 data70_h15 = np.vstack((geo70_h15_mean[:,1], geo70_h15_std[:,1],Dt70_h15.T)).T
 data70_h30 = np.vstack((geo70_h30_mean[:,1], geo70_h30_std[:,1],Dt70_h30.T)).T
 
-np.savetxt("Dt40_h15.csv", np.concatenate((header,data40_h15)), delimiter=",", fmt='%s')
-np.savetxt("Dt40_h30.csv", np.concatenate((header,data40_h15)), delimiter=",", fmt='%s')
-np.savetxt("Dt50_h15.csv", np.concatenate((header,data50_h15)), delimiter=",", fmt='%s')
-np.savetxt("Dt50_h30.csv", np.concatenate((header,data50_h30)), delimiter=",", fmt='%s')
-np.savetxt("Dt70_h15.csv", np.concatenate((header,data70_h15)), delimiter=",", fmt='%s')
-np.savetxt("Dt70_h30.csv", np.concatenate((header,data70_h30)), delimiter=",", fmt='%s')
+# np.savetxt("Dt40_h15.csv", np.concatenate((header,data40_h15)), delimiter=",", fmt='%s')
+# np.savetxt("Dt40_h30.csv", np.concatenate((header,data40_h30)), delimiter=",", fmt='%s')
+# np.savetxt("Dt50_h15.csv", np.concatenate((header,data50_h15)), delimiter=",", fmt='%s')
+# np.savetxt("Dt50_h30.csv", np.concatenate((header,data50_h30)), delimiter=",", fmt='%s')
+# np.savetxt("Dt70_h15.csv", np.concatenate((header,data70_h15)), delimiter=",", fmt='%s')
+# np.savetxt("Dt70_h30.csv", np.concatenate((header,data70_h30)), delimiter=",", fmt='%s')
 
 #%% Translation diffusion - individual
-exclude = []
 suc_per = str(70)
-geo_h15_mean = np.delete(geo70_h15_mean,exclude,0)
-geo_h30_mean = np.delete(geo70_h30_mean,[],0)
-geo_h15_std = np.delete(geo70_h15_std,exclude,0)
-geo_h30_std = np.delete(geo70_h30_std,[],0)
-Dt_h15 = np.delete(Dt70_h15,exclude,0)
-Dt_h30 = np.delete(Dt70_h30,[],0)
-
+geo_h15_mean = geo70_h15_mean
+geo_h30_mean = geo70_h30_mean
+geo_h15_std = geo70_h15_std
+geo_h30_std = geo70_h30_std
+Dt_h15 = Dt70_h15
+Dt_h30 = Dt70_h30
 plt.rcParams.update({'font.size': 10})
+
 # diffusion_parallel = f(length)
 fig01,ax01 = plt.subplots(dpi=300, figsize=(6,2))
 ax01.errorbar(geo_h15_mean[:,1],Dt_h15[:,0],\
@@ -131,7 +136,7 @@ ax01.set_xlabel(r'length [$\mu m$]');
 ax01.set_title('Translation diffusion parallel (' + suc_per + '\% sucrose)')
 ax01.set_ylabel(r'$D_\parallel$ [$\mu m^2$/sec]')
 ax01.legend(["$h = 15\pm3~\mu m$", "$h = 30\pm3~\mu m$"])
-ax01.set_xlim([11, 22]);
+ax01.set_xlim([8, 22]);
 
 # diffusion_perpendicular1 = f(length)
 fig02,ax02 = plt.subplots(dpi=300, figsize=(6,2))
@@ -145,7 +150,7 @@ ax02.set_xlabel(r'length [$\mu m$]');
 ax02.set_title('Translation diffusion perpendicular 1 (' + suc_per + '\% sucrose)')
 ax02.set_ylabel(r'$D_\perp$ [$\mu m^2$/sec]')
 ax02.legend(["$h = 15\pm3~\mu m$", "$h = 30\pm3~\mu m$"])
-ax02.set_xlim([11, 22]);
+ax02.set_xlim([8, 22]);
 
 # diffusion_perpendicular2 = f(length)
 fig03,ax03 = plt.subplots(dpi=300, figsize=(6,2))
@@ -159,14 +164,21 @@ ax03.set_xlabel(r'length [$\mu m$]');
 ax03.set_title('Translation diffusion perpendicular 2 (' + suc_per + '\% sucrose)')
 ax03.set_ylabel(r'$D_\perp$ [$\mu m^2$/sec]')
 ax03.legend(["$h = 15\pm3~\mu m$", "$h = 30\pm3~\mu m$"])
-ax03.set_xlim([11, 22]);
+ax03.set_xlim([8, 22]);
 
 #%% plot ratio of translation diffusion
-ratio1_h15 = Dt_h15[:,0]/Dt_h15[:,1]
-ratio1_h30 = Dt_h30[:,0]/Dt_h30[:,1]
-ratio2_h15 = Dt_h15[:,0]/Dt_h15[:,2]
-ratio2_h30 = Dt_h30[:,0]/Dt_h30[:,2]
-r_xaxis = 4
+# average perpendicular 1 and 2
+Dt_h15_perp = np.zeros(len(Dt_h15))
+Dt_h30_perp = np.zeros(len(Dt_h30))
+for i in range(len(Dt_h15)):
+   Dt_h15_perp[i] = np.mean([Dt_h15[i,1],Dt_h15[i,2]])
+for i in range(len(Dt_h30)):
+   Dt_h30_perp[i] = np.mean([Dt_h30[i,1],Dt_h30[i,2]])
+   
+# computing ratio between parallel and perpendicular   
+ratio1_h15 = Dt_h15[:,0]/Dt_h15_perp
+ratio1_h30 = Dt_h30[:,0]/Dt_h30_perp
+r_xaxis = 3.5
 
 # fit CDF to the raw data
 def trunc_gauss_cdf(x, mu, sigma):
@@ -185,53 +197,61 @@ def fitCDF(x):
     result = model.fit(yaxis,params,x=xaxis)
     yplot = trunc_gauss_cdf(xplot, result.params['g1_mu'].value,\
                           result.params['g1_sigma'].value)
-    return xplot, yplot
+    mean = result.params['g1_mu'].value
+    sigma = result.params['g1_sigma'].value
+    return xplot, yplot, mean, sigma
 
-xplot1_h15, yplot1_h15 = fitCDF(ratio1_h15)
-xplot1_h30, yplot1_h30 = fitCDF(ratio1_h30)
-xplot2_h15, yplot2_h15 = fitCDF(ratio2_h15)
-xplot2_h30, yplot2_h30 = fitCDF(ratio2_h30)
+xplot1_h15, yplot1_h15, mean_h15, sigma_h15 = fitCDF(ratio1_h15)
+xplot1_h30, yplot1_h30, mean_h30, sigma_h30 = fitCDF(ratio1_h30)
 
 # plot them
 plt.rcParams.update({'font.size': 15})
 fig1,ax1 = plt.subplots(dpi=300, figsize=(6,5))
 weights_h15 = np.ones_like(ratio1_h15)/len(ratio1_h15)
 weights_h30 = np.ones_like(ratio1_h30)/len(ratio1_h15)
+ax1.plot(xplot1_h15, yplot1_h15,'C0', alpha=0.5)
+ax1.plot(xplot1_h30, yplot1_h30,'C1', alpha=0.5)
 ax1.hist(ratio1_h15, 5, weights=weights_h15, facecolor='C0', alpha=0.5)
 ax1.hist(ratio1_h30, 5, weights=weights_h30, facecolor='C1', alpha=0.5)
 ax1.plot(np.sort(ratio1_h15),np.linspace(0,1,len(ratio1_h15),endpoint=False),\
-         'C0o',MarkerSize=3, alpha=0.5)
+         'C0o',MarkerSize=5, alpha=0.5)
 ax1.plot(np.sort(ratio1_h30),np.linspace(0,1,len(ratio1_h30),endpoint=False),\
-         'C1o',MarkerSize=3, alpha=0.5)
-ax1.plot(xplot1_h15, yplot1_h15,'C0')
-ax1.plot(xplot1_h30, yplot1_h30,'C1')
-ax1.set_title(r'$D_\parallel / D_{\perp 1}\ -\ $'  + str(suc_per) + '\% sucrose' )
-ax1.set_xlabel(r'$D_\parallel / D_{\perp 1}$');
+         'C1o',MarkerSize=5, alpha=0.5)
+ax1.set_title(r'$D_\parallel / D_{\perp}\ -\ $'  + str(suc_per) + '\% sucrose' )
+ax1.set_xlabel(r'$D_\parallel / D_{\perp}$');
 ax1.set_ylabel(r'Cumulative Probability')
-ax1.set_ylim([-0.05, 1.1]); ax1.set_xlim([0, 4]);
+ax1.set_ylim([-0.05, 1.1]); ax1.set_xlim([0, r_xaxis]);
 ax1.legend(["$h = 15\pm3~\mu m~(n =\ $"+ str(len(Dt_h15)) + r'$)$',\
-            "$h = 30\pm3~\mu m~(n =\ $"+ str(len(Dt_h30)) + r'$)$'])
-# ax1.legend(["$h = 15\pm3~\mu m~(n = $"+ str(len(Dt50_h15)) + r'$)$',\
-#             "$h = 30\pm3~\mu m~(n = $"+ str(len(Dt50_h30)) + r'$)$'])
+            "$h = 30\pm3~\mu m~(n =\ $"+ str(len(Dt_h30)) + r'$)$'  ])
+ax1.figure.savefig(r'./PDF/suc'+ suc_per + '-ratio.pdf')
+    
+#%% diffusion parallel VS perpendiculars
+xaxis = ['Parallel', 'Perpendicular']
+xpos = np.arange(len(xaxis))
+Dt_h15_mean = [np.mean(Dt_h15[:,0]), np.mean(Dt_h15_perp)]
+Dt_h15_std = [np.std(Dt_h15[:,0]), np.std(Dt_h15_perp)]
+Dt_h30_mean = [np.mean(Dt_h30[:,0]), np.mean(Dt_h30_perp)]
+Dt_h30_std = [np.std(Dt_h30[:,0]), np.std(Dt_h30_perp)]
 
-plt.rcParams.update({'font.size': 15})
-fig2,ax2 = plt.subplots(dpi=300, figsize=(6,5))
-weights_h15 = np.ones_like(ratio2_h15)/len(ratio2_h15)
-weights_h30 = np.ones_like(ratio2_h30)/len(ratio2_h15)
-ax2.hist(ratio2_h15, 5, weights=weights_h15, facecolor='C0', alpha=0.5)
-ax2.hist(ratio2_h30, 5, weights=weights_h30, facecolor='C1', alpha=0.5)
-ax2.plot(np.sort(ratio2_h15),np.linspace(0,1,len(ratio2_h15),endpoint=False),\
-         'C0o',MarkerSize=3, alpha=0.5)
-ax2.plot(np.sort(ratio2_h30),np.linspace(0,1,len(ratio2_h30),endpoint=False),\
-         'C1o',MarkerSize=3, alpha=0.5)
-ax2.plot(xplot2_h15, yplot2_h15,'C0')
-ax2.plot(xplot2_h30, yplot2_h30,'C1')
-ax2.set_title(r'$D_\parallel / D_{\perp 2}\ -\ $'  + str(suc_per) + '\% sucrose' )
-ax2.set_xlabel(r'$D_\parallel / D_{\perp 2}$');
-ax2.set_ylabel(r'Cumulative Probability')
-ax2.set_ylim([-0.05, 1.1]); ax2.set_xlim([0, 4]);
-# ax2.legend(["$h = 15\pm3~\mu m~(n = $"+ str(len(Dt_h15)) + r'$)$',\
-#             "$h = 30\pm3~\mu m~(n = $"+ str(len(Dt_h30)) + r'$)$'])
+width = 0.35
+plt.rcParams.update({'font.size': 22})
+fig04a, ax04a = plt.subplots(dpi=300, figsize=(10,6.2))
+rects2 = ax04a.bar(xpos + width/2, Dt_h15_mean, width,\
+                  label=r'$h = 15\pm3~\mu m~(n =\ $'+ str(len(Dt70_h15)) + r'$)$',
+                  yerr=Dt_h15_std/np.sqrt(len(Dt_h15)),\
+                  align='center', alpha = 0.5, ecolor='black', capsize=10)
+rects1 = ax04a.bar(xpos - width/2, Dt_h30_mean, width,\
+                  label=r'$h = 30\pm3~\mu m~(n =\ $'+ str(len(Dt70_h30)) + r'$)$',
+                  yerr=Dt_h30_std/np.sqrt(len(Dt_h30)),\
+                  align='center', alpha = 0.5, ecolor='black', capsize=10)
+ax04a.set_ylabel(r'$D_Y$ [$\mu m^2$/sec]')
+ax04a.set_title('Translation diffusion (' + str(70) + '\% sucrose)')
+ax04a.set_xticks(xpos)
+ax04a.set_xticklabels(xaxis)
+ax04a.legend()
+ax04a.set_ylim([0, 3]);
+fig04a.tight_layout()
+ax04a.figure.savefig(r'./PDF/suc'+ suc_per + '-abs.pdf')
 
 #%% diffusion parallel VS perpendiculars
 # 70% sucrose

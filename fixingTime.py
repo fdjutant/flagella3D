@@ -21,10 +21,15 @@ plt.rcParams['text.usetex'] = True
 plt.rcParams.update({'font.size': 10})
 
 path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
-xls70_h15 = glob.glob(path + '/20211004f_70suc_h15um/done/*.xlsx')
-xls70_h30 = glob.glob(path + '/20211004g_70suc_h30um/done/*.xlsx')
-npy70_h15 = glob.glob(path + '/20211004f_70suc_h15um/done/*-results.npy')
-npy70_h30 = glob.glob(path + '/20211004g_70suc_h30um/done/*-results.npy')
+xls70_h15_old = glob.glob(path + '/20211004f_70suc_h15um/done/*.xlsx')
+xls70_h30_old = glob.glob(path + '/20211004g_70suc_h30um/done/*.xlsx')
+npy70_h15_old = glob.glob(path + '/20211004f_70suc_h15um/done/*-results.npy')
+npy70_h30_old = glob.glob(path + '/20211004g_70suc_h30um/done/*-results.npy')
+
+xls70_h15 = glob.glob(path + '/20211022c_suc70_h15um/done/*.xlsx')
+xls70_h30 = glob.glob(path + '/20211022d_suc70_h30um/done/*.xlsx')
+npy70_h15 = glob.glob(path + '/20211022c_suc70_h15um/done/*-results.npy')
+npy70_h30 = glob.glob(path + '/20211022d_suc70_h30um/done/*-results.npy')
 
 xls50_h15 = glob.glob(path + '/20211018a_suc50_h15um/done/*.xlsx')
 xls50_h30 = glob.glob(path + '/20211018b_suc50_h30um/done/*.xlsx')
@@ -40,10 +45,10 @@ vis70 = 673 # 70% sucrose, unit: mPa.s (Quintas et al. 2005)
 vis50 = 15.04 # 50% sucrose, unit: mPa.s (Telis et al. 2005)
 vis40 = 6.20 # 40% sucrose, unit: mPa.s (Telis et al. 2005)
 
-theXLS = xls40_h15
-theNPY = npy40_h15
-vis = vis40
-sur_per = str(40)
+theXLS = xls70_h30
+theNPY = npy70_h30
+vis = vis70
+sur_per = str(70)
 rData = 0.1
 
 #%% Recompute diffusion coefficient from tracking
