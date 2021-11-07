@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.spatial import ConvexHull
+from scipy.spatial.distance import cdist
 
 #%% Define all necessary functions
 def rotmat(angle): # forming rotation matrix
@@ -90,16 +92,15 @@ def endPoints(X0,CM1,axes):
     
     return endpoint, Coord
 
-#%% measure length
+#%% measure length (https://stackoverflow.com/a/60955825)
 def flaLength(X0):
-    
-    disToOrigin = []    # find the longest distance from CM
-    for i in range(len(X0)):
-        disToOrigin.append(np.linalg.norm(X0[i]))
-    disToOrigin = np.array(disToOrigin, dtype=object)
-    
-    # Find the longest distance between points
-    thelength = np.sort(disToOrigin)[-1]
+
+    hull = ConvexHull(X0)
+    hullpoints = X0[hull.vertices,:] # Extract the points forming the hull
+    hdist = cdist(hullpoints, hullpoints, metric='euclidean') # finding the best pair
+    bestpair = np.unravel_index(hdist.argmax(), hdist.shape)
+
+    thelength = np.linalg.norm([hullpoints[bestpair[0]]-hullpoints[bestpair[1]]])
     
     return thelength
 

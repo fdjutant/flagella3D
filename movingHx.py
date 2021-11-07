@@ -7,19 +7,28 @@ from sklearn.decomposition import PCA
 
 #%% Create a class to create helix
 class createMovHx:
-    def __init__(self, length, radius, pitchHx, chirality, resol,\
-                 Nframes, transRange, pitchRange, rollRange, yawRange,\
+    def __init__(self, length, radius, pitchHx, chirality, resol, Nframes,\
+                 Dpar, Dperp1, Dperp2,\
+                 Dpitch, Droll, Dyaw,\
                  spin, drift,\
-                 hxInt, hxVar, noiseInt, noiseVar):
+                 hxInt, hxVar, noiseInt, noiseVar, vol_exp):
         
         self.Nframes = Nframes
         self.spin = spin
         self.drift = UmToPx(drift)
-        self.transRange = UmToPx(transRange)
-        self.pitchRange = np.radians(pitchRange)
-        self.rollRange = np.radians(rollRange)
-        self.yawRange = np.radians(yawRange)
         
+        self.Dpar   = UmToPx(Dpar)
+        self.Dperp1 = UmToPx(Dperp1)
+        self.Dperp2 = UmToPx(Dperp2)
+        
+        self.Dpitch = np.radians(Dpitch)
+        self.Droll = np.radians(Droll)
+        self.Dyaw = np.radians(Dyaw)
+
+        # self.Dpitch = Dpitch * (np.pi/180)**2
+        # self.Droll = Droll * (np.pi/180)**2
+        # self.Dyaw = Dyaw * (np.pi/180)**2
+
         self.chirality = chirality
         self.resol = resol
         self.pitchHx = UmToPx(pitchHx)
@@ -31,13 +40,15 @@ class createMovHx:
         self.noiseInt = noiseInt
         self.noiseVar = noiseVar
         
+        self.vol_exp = vol_exp
+        
     def movHx(self):
         # if self.transRange == 0:
         #     boxSize = self.length + 30
         # else:
         #     boxSize = self.length + np.round(0.5*self.transRange*\
         #                                      self.Nframes).astype('int')
-        boxSize = self.length + 200
+        boxSize = self.length.astype('int') + 250
         img = np.zeros((self.Nframes,boxSize,\
                         boxSize,boxSize),dtype='uint8')
         
@@ -46,24 +57,30 @@ class createMovHx:
         np.random.seed(13317043) # ensure repeatable random
         
         # Center of mass fluctuation
-        deltaCM = np.random.uniform(-self.transRange/2, self.transRange/2,\
-                                    self.Nframes).astype(np.float64)
-        cmFluc = np.zeros(self.Nframes);
+        # sig_par   = np.sqrt(2 * 3 * self.Dpar * self.vol_exp);
+        # sig_perp1 = np.sqrt(2 * 3 * self.Dperp1 * self.vol_exp);
+        # sig_perp2 = np.sqrt(2 * 3 * self.Dperp2 * self.vol_exp);
+        sig_par = self.Dpar 
+        sig_perp1 = self.Dperp1
+        sig_perp2 = self.Dperp2
+        cm = np.zeros([self.Nframes,3]);
         for i in range(self.Nframes):
-            cmFluc[i] = np.sum(deltaCM[0:i+1])
-
+            cm[i,0] = cm[i-1,0] + np.random.normal(0, sig_par)
+            cm[i,1] = cm[i-1,1] + np.random.normal(0, sig_perp1)
+            cm[i,2] = cm[i-1,2] + np.random.normal(0, sig_perp2)            
+        
         # Pitch, roll, and yaw (relative to the local axes)
-        delPitch = np.random.uniform(-self.pitchRange/2., self.pitchRange/2.,\
-                                      self.Nframes).astype(np.float64)        
-        delRoll = np.random.uniform(-self.rollRange/2., self.rollRange/2.,\
-                                     self.Nframes).astype(np.float64)
-        delYaw = np.random.uniform(-self.yawRange/2., self.yawRange/2.,\
-                                     self.Nframes).astype(np.float64)
-        EuAng = np.zeros([self.Nframes,3])
+        # sig_pitch = np.sqrt(2 * 3 * self.Dpitch * self.vol_exp);
+        # sig_roll = np.sqrt(2 * 3 * self.Droll * self.vol_exp);
+        # sig_yaw = np.sqrt(2 * 3 * self.Dyaw * self.vol_exp);
+        sig_pitch = self.Dpitch;
+        sig_roll = self.Droll;
+        sig_yaw = self.Dyaw;
+        EuAng = np.zeros([self.Nframes,3]);
         for i in range(self.Nframes):
-            EuAng[i,0] = np.sum(delPitch[0:i+1])   # relative to x-axis
-            EuAng[i,1] = np.sum(delRoll[0:i+1])   # relative to y-axis 
-            EuAng[i,2] = np.sum(delYaw[0:i+1])   # relative to z-axis
+            EuAng[i-1,0] = EuAng[i-1,0] + np.random.normal(0, sig_pitch)     
+            EuAng[i-1,1] = EuAng[i-1,1] + np.random.normal(0, sig_roll)
+            EuAng[i-1,2] = EuAng[i-1,2] + np.random.normal(0, sig_yaw)
             
         # Direction angle (relative to the lab axes)
         dirAng = np.zeros([self.Nframes,3])
@@ -75,7 +92,7 @@ class createMovHx:
         n1 = np.zeros([self.Nframes,3]); n2 = np.zeros([self.Nframes,3]);
         n3 = np.zeros([self.Nframes,3]); vectN = np.zeros([self.Nframes,3,3])
         
-        CMS = []; frame = []; vectorU = np.zeros([self.Nframes,3])
+        CMS = []; frame = []; 
         for i in range(self.Nframes):
             
             points = self.createHx(0)  # generate the helix coordinates
@@ -88,17 +105,21 @@ class createMovHx:
                 n2[i] /= np.linalg.norm(n2[i])
                 n3[i] = np.cross(n1[i],n2[i])
                 n3[i] /= np.linalg.norm(n3[i])
+                
             else:
-                n1[i] = n1[i-1] + (delPitch[i-1] * n2[i-1] -\
-                                   delYaw[i-1] * n3[i-1])
-                n2[i] = n2[i-1] + (-delPitch[i-1]  * n1[i-1] +\
-                                   delRoll[i-1] * n3[i-1])
+                n1[i] = n1[i-1] + ( (EuAng[i,0]-EuAng[i-1,0]) * n2[i-1] -\
+                                    (EuAng[i,2]-EuAng[i-1,2]) * n3[i-1])
+                
+                n2[i] = n2[i-1] + (-(EuAng[i,0]-EuAng[i-1,0]) * n1[i-1] +\
+                                    (EuAng[i,1]-EuAng[i-1,1]) * n3[i-1])
                 # n3[i] = np.cross(n1[i],n2[i])
-                n3[i] = n3[i-1] + (delYaw[i-1]  * n1[i-1] -\
-                                    delRoll[i-1] * n2[i-1])
+                n3[i] = n3[i-1] + ( (EuAng[i,2]-EuAng[i-1,2]) * n1[i-1] -\
+                                    (EuAng[i,1]-EuAng[i-1,1]) * n2[i-1])
                      
             # set the center of mass
-            CM = origin + (n1[i]+0.25*n2[i]+0.25*n3[i]) * cmFluc[i] # extra constraint not needed
+            CM = origin + n1[i] * cm[i,0] +\
+                          n2[i] * cm[i,1] +\
+                          n3[i] * cm[i,2]
             CMS.append(CM)
 
             # prepare 3D images   
@@ -127,7 +148,7 @@ class createMovHx:
         for i in range(self.Nframes):
             img[i] = dilation(img[i])
             img[i] = dilation(img[i])
-            img[i] = dilation(img[i])
+            # img[i] = dilation(img[i])
         
         # add salt-and-pepper noise 
         img = self.addNoise(img)
@@ -190,4 +211,9 @@ class createMovHx:
 #%% convert from um to px    
 def UmToPx(inUM):
     inPX = np.round(inUM/0.115).astype('int')
+    return inPX
+
+#%% convert from um^2 to px^2
+def UmToPx_sq(inUM):
+    inPX = np.round(inUM/0.115**2).astype('int')
     return inPX
