@@ -38,7 +38,8 @@ pxum = 0.115;
 camExposure_ms = 2
 sweep_um = 15
 stepsize_nm = 400
-expTime = 1/ (sweep_um/stepsize_nm * camExposure_ms)
+# vol_exp = 1/ (sweep_um/stepsize_nm * camExposure_ms)
+vol_exp = 1e-3 * camExposure_ms * (sweep_um*1e3/stepsize_nm)  # in sec
 thresvalue_in = 0.8
 
 vis70 = 673 # 70% sucrose, unit: mPa.s (Quintas et al. 2005)
@@ -182,12 +183,12 @@ for j in range(len(images)):
     np.save(fileName[:len(fileName)-4] + "-results",ate)
     
     # All the MSD of interest
-    fromMSD = msd.theMSD(0.8, Nframes, cm, dirAng, EuAng[:,1], expTime)
+    fromMSD = msd.theMSD(0.8, Nframes, cm, dirAng, EuAng[:,1], vol_exp)
     time_x, MSD_N, MSD_S1, MSD_S2 = fromMSD.trans_MSD()
     time_x, MSD_combo = fromMSD.combo_MSD()
-    time_x, MSD_pitch = regMSD(0.8, Nframes, EuAng[:,0], expTime)
-    time_x, MSD_roll = regMSD(0.8, Nframes, EuAng[:,1], expTime)
-    time_x, MSD_yaw = regMSD(0.8, Nframes, EuAng[:,2], expTime)
+    time_x, MSD_pitch = regMSD(0.8, Nframes, EuAng[:,0], vol_exp)
+    time_x, MSD_roll = regMSD(0.8, Nframes, EuAng[:,1], vol_exp)
+    time_x, MSD_yaw = regMSD(0.8, Nframes, EuAng[:,2], vol_exp)
 
     # Fit the MSDs curve
     nData = np.int32(0.1*Nframes) # number of data fitted
