@@ -184,14 +184,16 @@ for j in range(len(images)):
     # All the MSD of interest
     fromMSD = msd.theMSD(0.8, Nframes, cm, dirAng,\
                          EuAng[:,1], localAxes, vol_exp)
+    # time_x, MSD_N, MSD_S, MSD_combo = fromMSD.trans_combo_MSD()
     time_x, MSD_N, MSD_S, MSD_combo = fromMSD.trans_combo_MSD()
-    # time_x, MSD_combo = fromMSD.combo_MSD()
+    time_x, MSD_cm = regMSD(0.8, Nframes, cm[:,0], vol_exp)
     time_x, MSD_pitch = regMSD(0.8, Nframes, EuAng[:,0], vol_exp)
     time_x, MSD_roll = regMSD(0.8, Nframes, EuAng[:,1], vol_exp)
     time_x, MSD_yaw = regMSD(0.8, Nframes, EuAng[:,2], vol_exp)
 
     # Fit the MSDs curve
-    nData = np.int32(0.1*Nframes) # number of data fitted
+    rData = 0.05;
+    nData = np.int32(rData*Nframes) # number of data fitted
     def MSDfit(x, a):
         return a * x   
     fitN = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_N[0:nData],p0=0.1)
