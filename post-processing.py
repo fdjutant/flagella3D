@@ -14,17 +14,16 @@ plt.rcParams.update({
     "font.sans-serif": ["Helvetica"]})
 
 path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
-# xls70_h15_old = glob.glob(path + '/20211004f_70suc_h15um/done/*-10per.xlsx')
-# xls70_h30_old = glob.glob(path + '/20211004g_70suc_h30um/done/*-10per.xlsx')
+runNum = 'run-02'
 
-xls70_h15 = glob.glob(path + '/20211022c_suc70_h15um/done/*-10per.xlsx')
-xls70_h30 = glob.glob(path + '/20211022d_suc70_h30um/done/*-10per.xlsx')
+xls70_h15 = glob.glob(path + '/20211022c_suc70_h15um/' + runNum + '/*.xlsx')
+xls70_h30 = glob.glob(path + '/20211022d_suc70_h30um/' + runNum + '/*.xlsx')
 
-xls50_h15 = glob.glob(path + '/20211018a_suc50_h15um/done/*-10per.xlsx')
-xls50_h30 = glob.glob(path + '/20211018b_suc50_h30um/done/*-10per.xlsx')
+xls50_h15 = glob.glob(path + '/20211018a_suc50_h15um/' + runNum + '/*.xlsx')
+xls50_h30 = glob.glob(path + '/20211018b_suc50_h30um/' + runNum + '/*.xlsx')
 
-xls40_h15 = glob.glob(path + '/20211022a_suc40_h15um/done/*-10per.xlsx')
-xls40_h30 = glob.glob(path + '/20211022b_suc40_h30um/done/*-10per.xlsx')
+xls40_h15 = glob.glob(path + '/20211022a_suc40_h15um/' + runNum + '/*.xlsx')
+xls40_h30 = glob.glob(path + '/20211022b_suc40_h30um/' + runNum + '/*.xlsx')
 
 #%% Go through Excel sheets
 # 40% sucrose, h = (15, 30) um from wall
@@ -136,7 +135,7 @@ ax01.set_xlabel(r'length [$\mu m$]');
 ax01.set_title('Translation diffusion parallel (' + suc_per + '\% sucrose)')
 ax01.set_ylabel(r'$D_\parallel$ [$\mu m^2$/sec]')
 ax01.legend(["$h = 15\pm3~\mu m$", "$h = 30\pm3~\mu m$"])
-ax01.set_xlim([8, 22]);
+ax01.set_xlim([4, 10]);
 
 # diffusion_perpendicular1 = f(length)
 fig02,ax02 = plt.subplots(dpi=300, figsize=(6,2))
@@ -150,35 +149,14 @@ ax02.set_xlabel(r'length [$\mu m$]');
 ax02.set_title('Translation diffusion perpendicular 1 (' + suc_per + '\% sucrose)')
 ax02.set_ylabel(r'$D_\perp$ [$\mu m^2$/sec]')
 ax02.legend(["$h = 15\pm3~\mu m$", "$h = 30\pm3~\mu m$"])
-ax02.set_xlim([8, 22]);
-
-# diffusion_perpendicular2 = f(length)
-fig03,ax03 = plt.subplots(dpi=300, figsize=(6,2))
-ax03.errorbar(geo_h15_mean[:,1],Dt_h15[:,2],\
-              xerr=geo_h15_std[:,1],\
-              marker="o",linestyle = 'None',alpha=0.5,capsize=2)
-ax03.errorbar(geo_h30_mean[:,1],Dt_h30[:,2],\
-              xerr=geo_h30_std[:,1],\
-              marker="o",linestyle = 'None',alpha=0.5,capsize=2)
-ax03.set_xlabel(r'length [$\mu m$]');
-ax03.set_title('Translation diffusion perpendicular 2 (' + suc_per + '\% sucrose)')
-ax03.set_ylabel(r'$D_\perp$ [$\mu m^2$/sec]')
-ax03.legend(["$h = 15\pm3~\mu m$", "$h = 30\pm3~\mu m$"])
-ax03.set_xlim([8, 22]);
+ax02.set_xlim([4, 10]);
 
 #%% plot ratio of translation diffusion
-# average perpendicular 1 and 2
-Dt_h15_perp = np.zeros(len(Dt_h15))
-Dt_h30_perp = np.zeros(len(Dt_h30))
-for i in range(len(Dt_h15)):
-   Dt_h15_perp[i] = np.mean([Dt_h15[i,1],Dt_h15[i,2]])
-for i in range(len(Dt_h30)):
-   Dt_h30_perp[i] = np.mean([Dt_h30[i,1],Dt_h30[i,2]])
-   
+  
 # computing ratio between parallel and perpendicular   
-ratio1_h15 = Dt_h15[:,0]/Dt_h15_perp
-ratio1_h30 = Dt_h30[:,0]/Dt_h30_perp
-r_xaxis = 3.5
+ratio1_h15 = Dt_h15[:,0]/Dt_h15[:,1]
+ratio1_h30 = Dt_h30[:,0]/Dt_h30[:,1]
+r_xaxis = 3
 
 # fit CDF to the raw data
 def trunc_gauss_cdf(x, mu, sigma):
@@ -211,8 +189,8 @@ weights_h15 = np.ones_like(ratio1_h15)/len(ratio1_h15)
 weights_h30 = np.ones_like(ratio1_h30)/len(ratio1_h15)
 ax1.plot(xplot1_h15, yplot1_h15,'C0', alpha=0.5)
 ax1.plot(xplot1_h30, yplot1_h30,'C1', alpha=0.5)
-ax1.hist(ratio1_h15, 5, weights=weights_h15, facecolor='C0', alpha=0.5)
-ax1.hist(ratio1_h30, 5, weights=weights_h30, facecolor='C1', alpha=0.5)
+# ax1.hist(ratio1_h15, 5, weights=weights_h15, facecolor='C0', alpha=0.5)
+# ax1.hist(ratio1_h30, 5, weights=weights_h30, facecolor='C1', alpha=0.5)
 ax1.plot(np.sort(ratio1_h15),np.linspace(0,1,len(ratio1_h15),endpoint=False),\
          'C0o',MarkerSize=5, alpha=0.5)
 ax1.plot(np.sort(ratio1_h30),np.linspace(0,1,len(ratio1_h30),endpoint=False),\
@@ -228,10 +206,10 @@ ax1.figure.savefig(r'./PDF/suc'+ suc_per + '-ratio.pdf')
 #%% diffusion parallel VS perpendiculars
 xaxis = ['Parallel', 'Perpendicular']
 xpos = np.arange(len(xaxis))
-Dt_h15_mean = [np.mean(Dt_h15[:,0]), np.mean(Dt_h15_perp)]
-Dt_h15_std = [np.std(Dt_h15[:,0]), np.std(Dt_h15_perp)]
-Dt_h30_mean = [np.mean(Dt_h30[:,0]), np.mean(Dt_h30_perp)]
-Dt_h30_std = [np.std(Dt_h30[:,0]), np.std(Dt_h30_perp)]
+Dt_h15_mean = [np.mean(Dt_h15[:,0]), np.mean(Dt_h15[:,1])]
+Dt_h15_std = [np.std(Dt_h15[:,0]), np.std(Dt_h15[:,1])]
+Dt_h30_mean = [np.mean(Dt_h30[:,0]), np.mean(Dt_h30[:,1])]
+Dt_h30_std = [np.std(Dt_h30[:,0]), np.std(Dt_h30[:,1])]
 
 width = 0.35
 plt.rcParams.update({'font.size': 22})
@@ -245,11 +223,11 @@ rects1 = ax04a.bar(xpos - width/2, Dt_h30_mean, width,\
                   yerr=Dt_h30_std/np.sqrt(len(Dt_h30)),\
                   align='center', alpha = 0.5, ecolor='black', capsize=10)
 ax04a.set_ylabel(r'$D_Y$ [$\mu m^2$/sec]')
-ax04a.set_title('Translation diffusion (' + str(70) + '\% sucrose)')
+ax04a.set_title('Translation diffusion (' + suc_per + '\% sucrose)')
 ax04a.set_xticks(xpos)
 ax04a.set_xticklabels(xaxis)
 ax04a.legend()
-ax04a.set_ylim([0, 3]);
+ax04a.set_ylim([0, 0.7]);
 fig04a.tight_layout()
 ax04a.figure.savefig(r'./PDF/suc'+ suc_per + '-abs.pdf')
 

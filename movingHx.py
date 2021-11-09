@@ -8,7 +8,7 @@ from sklearn.decomposition import PCA
 #%% Create a class to create helix
 class createMovHx:
     def __init__(self, length, radius, pitchHx, chirality, resol, Nframes,\
-                 Dpar, Dperp1, Dperp2,\
+                 Dpar, Dperp,\
                  Dpitch, Droll, Dyaw,\
                  spin, drift,\
                  hxInt, hxVar, noiseInt, noiseVar, vol_exp):
@@ -17,9 +17,8 @@ class createMovHx:
         self.spin = spin
         self.drift = UmToPx(drift)
         
-        self.Dpar   = UmToPx(Dpar)
-        self.Dperp1 = UmToPx(Dperp1)
-        self.Dperp2 = UmToPx(Dperp2)
+        self.Dpar  = Dpar/0.115
+        self.Dperp = Dperp/0.115
         
         self.Dpitch = np.radians(Dpitch)
         self.Droll = np.radians(Droll)
@@ -60,14 +59,14 @@ class createMovHx:
         # sig_par   = np.sqrt(2 * 3 * self.Dpar * self.vol_exp);
         # sig_perp1 = np.sqrt(2 * 3 * self.Dperp1 * self.vol_exp);
         # sig_perp2 = np.sqrt(2 * 3 * self.Dperp2 * self.vol_exp);
-        sig_par = self.Dpar 
-        sig_perp1 = self.Dperp1
-        sig_perp2 = self.Dperp2
-        cm = np.zeros([self.Nframes,3]);
-        for i in range(self.Nframes):
-            cm[i,0] = cm[i-1,0] + np.random.normal(0, sig_par)
-            cm[i,1] = cm[i-1,1] + np.random.normal(0, sig_perp1)
-            cm[i,2] = cm[i-1,2] + np.random.normal(0, sig_perp2)            
+        sig_par = np.sqrt(self.Dpar)
+        sig_perp = np.sqrt(self.Dperp)
+        lengthwise = np.zeros(self.Nframes); 
+        sidewise1 = np.zeros(self.Nframes); sidewise2 = np.zeros(self.Nframes);
+        for i in range(1,self.Nframes):
+            lengthwise[i] = lengthwise[i-1] + np.random.normal(0, sig_par)
+            sidewise1[i] = sidewise1[i-1] + np.random.normal(0, sig_perp)
+            sidewise2[i] = sidewise2[i-1] + np.random.normal(0, sig_perp)
         
         # Pitch, roll, and yaw (relative to the local axes)
         # sig_pitch = np.sqrt(2 * 3 * self.Dpitch * self.vol_exp);
@@ -77,7 +76,7 @@ class createMovHx:
         sig_roll = self.Droll;
         sig_yaw = self.Dyaw;
         EuAng = np.zeros([self.Nframes,3]);
-        for i in range(self.Nframes):
+        for i in range(1,self.Nframes):
             EuAng[i-1,0] = EuAng[i-1,0] + np.random.normal(0, sig_pitch)     
             EuAng[i-1,1] = EuAng[i-1,1] + np.random.normal(0, sig_roll)
             EuAng[i-1,2] = EuAng[i-1,2] + np.random.normal(0, sig_yaw)
@@ -117,9 +116,9 @@ class createMovHx:
                                     (EuAng[i,1]-EuAng[i-1,1]) * n2[i-1])
                      
             # set the center of mass
-            CM = origin + n1[i] * cm[i,0] +\
-                          n2[i] * cm[i,1] +\
-                          n3[i] * cm[i,2]
+            CM = origin + n1[i] * lengthwise[i] +\
+                          n2[i] * sidewise1[i] +\
+                          n3[i] * sidewise2[i]   
             CMS.append(CM)
 
             # prepare 3D images   
@@ -210,7 +209,7 @@ class createMovHx:
     
 #%% convert from um to px    
 def UmToPx(inUM):
-    inPX = np.round(inUM/0.115).astype('int')
+    inPX = np.round(inUM/0.115)#.astype('int')
     return inPX
 
 #%% convert from um^2 to px^2

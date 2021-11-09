@@ -88,7 +88,7 @@ def endPoints(X0,CM1,axes):
     while lentest < 0:
         endpoint = np.where(disToOrigin == np.sort(disToOrigin)[-k])[0][0]
         k += 1
-        lentest = np.dot(Coord[endpoint],axes[0])
+        lentest = np.dot(Coord[endpoint],axes)
     
     return endpoint, Coord
 
@@ -100,9 +100,32 @@ def flaLength(X0):
     hdist = cdist(hullpoints, hullpoints, metric='euclidean') # finding the best pair
     bestpair = np.unravel_index(hdist.argmax(), hdist.shape)
 
-    thelength = np.linalg.norm([hullpoints[bestpair[0]]-hullpoints[bestpair[1]]])
+    thelength = np.linalg.norm([hullpoints[bestpair[0]][0]-hullpoints[bestpair[1]][0]])
     
     return thelength
+
+#%% find n1 using end point
+def findN1(X0, CM1, axes_ref):
+
+    hull = ConvexHull(X0)
+    hullpoints = X0[hull.vertices,:] # Extract the points forming the hull
+    hdist = cdist(hullpoints, hullpoints, metric='euclidean') # finding the best pair
+    bestpair = np.unravel_index(hdist.argmax(), hdist.shape)
+
+    if np.mean(axes_ref) == 0:
+        ep = np.where( hullpoints[bestpair[0]] == X0 )[0][0]
+        axes = X0[ep] - CM1
+    else:
+        lentest1 = np.dot( (hullpoints[bestpair[0]][0] - CM1), axes_ref )
+        lentest2 = np.dot( (hullpoints[bestpair[1]][0] - CM1), axes_ref ) 
+        if lentest1 > 0:
+            ep = np.where( hullpoints[bestpair[0]][0] == X0)[0][0]
+            axes = X0[ep] - CM1
+        else:
+            ep = np.where( hullpoints[bestpair[1]][0] == X0)[0][0]
+            axes = X0[ep] - CM1
+                    
+    return axes, ep
 
 #%% phase unwrapping
 def phaseUnwrap(angle):

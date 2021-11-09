@@ -35,7 +35,7 @@ if simORreal: # synthetic data
     
     # input helix motion
     Nframes = 100; spin = 0; drift = 0;
-    Dpar = 0.5; Dperp1 = 0.125; Dperp2 = 0.125;    # in um^2/sec
+    Dperp = 0.25; Dpar = 3*Dperp;    # in um^2/sec
     Dpitch = 5; Droll = 30; Dyaw = 3;           # in degree/sec
     
     # input helix-and-noise level
@@ -45,7 +45,7 @@ if simORreal: # synthetic data
     # create movies of synthetic helix
     fromHx = movingHx.createMovHx(length, radius, pitchHx,\
                                   chirality, resol, Nframes,\
-                                  Dpar, Dperp1, Dperp2,\
+                                  Dpar, Dperp,\
                                   Dpitch, Droll, Dyaw,\
                                   spin, drift,\
                                   hxInt, hxVar, noiseInt, noiseVar, vol_exp)
@@ -73,7 +73,7 @@ else:
           "Avg pixel:", np.mean(frame0[np.nonzero(frame0)]),"\n",\
           "Num frame:", len(intensity) )
 
-# Image analysis and curve fitting
+#%% Image analysis and curve fitting
 xb = []; xb0 = []; xp = []; xp0 = []
 blobSkel = []; blobBin =[]; blobSize = []
 eigenvec = []; blobRaw = []; xb0 = []
@@ -88,7 +88,7 @@ endpt = np.zeros([Nframes]).astype('int')
 pxum = 0.115
 start = time.perf_counter()
 
-for frame in range(100):
+for frame in range(len(intensity)):
 
     if simORreal:
         # Extract coordinates from the image (no threshold in Napari)
@@ -98,8 +98,7 @@ for frame in range(100):
         xb.append(X0)
         CM1 = np.array([sum(X0[:,j]) for j in range(X0.shape[1])])/X0.shape[0]
         cm[frame,:] = CM1
-    
-        
+            
         # Using threshold (threshold in Napari can be seen)
         # thresvalue = 0.9; sizes = 1200;    
         # fromImgPro = imProcess.ImPro(intensity[frame],thresvalue)
@@ -145,32 +144,40 @@ for frame in range(100):
     # Compute the flagella length    
     lenfla[frame] = flaLength(X0)*pxum
         
-    # Use PCA to find n1
-    X = X0 - CM1 # shift all the coordinates into origin
+    # Shift CM to origin
+    X = X0 - CM1
     xb0.append(X)
-    pca = PCA(n_components=3)
-    pca.fit(X)
-    axes = pca.components_
     
-    # Make the PCA consistent
-    if frame == 0:
+    # Use PCA to find n1
+    # pca = PCA(n_components=3)
+    # pca.fit(X)
+    # axes = pca.components_   
+    # if frame == 0:     # Make the PCA consistent
+    #     axes_ref = axes
+    # else:
+    #     axes, axes_ref = consistentPCA(axes, axes_ref)
+    
+    # Use end points to find n1
+    if frame == 0:    
+        axes, ep = findN1(X0, CM1, 0)    
         axes_ref = axes
     else:
-        axes, axes_ref = consistentPCA(axes, axes_ref)
+        axes, ep = findN1(X0, CM1, axes_ref)
+        axes_ref = axes
     
     # Find the second vector orthogonal to the major axis using skeletonize
-    if frame == 0:
-        ep_ref = 0
-        ep, Coord = endPoints(X0, CM1, axes)
-    else:
-        ep, Coord = endPoints(X0, CM1, axes)
-        ep_ref = ep
-    endpt[frame] = ep.astype('int')
-    xb0.append(Coord)
+    # if frame == 0:
+    #     ep_ref = 0
+    #     ep, Coord = endPoints(X0, CM1, axes)
+    # else:
+    #     ep, Coord = endPoints(X0, CM1, axes)
+    #     ep_ref = ep
+    # endpt[frame] = ep.astype('int')
+    # xb0.append(Coord)
     
     # Use Gram-Schmidt to find n2, then find n3 with the cross
-    n1 = axes[0] / np.linalg.norm(axes[0])
-    n2 = Coord[ep] - np.array([0,0,0])
+    n1 = axes / np.linalg.norm(axes)
+    n2 = X0[ep].astype('float64') - np.array([0,0,0])
     n2 -= n2.dot(n1) * n1 / np.linalg.norm(n1)**2
     n2 /= np.linalg.norm(n2)
     n3 = np.cross(n1,n2)
@@ -186,7 +193,7 @@ for frame in range(100):
     end = time.perf_counter()
     print('Processed done for frame#:',frame,
           '\n elapsed time (sec):',np.round(end-start,2),
-          '\n flagella length (um):', lenfla[frame])
+          '\n flagella length (um):', np.round(lenfla[frame],2))
 
 # write blobBin external file as Numpy array
 # np.save('xb.npy',xb)
@@ -305,7 +312,7 @@ if plotin3D:
     ax.set_xlabel(r'x [$\mu m$]'); ax.set_ylabel(r'y [$\mu m$]')
     ax.set_zlabel(r'z [$\mu m$]')
     
-    iframe = 25;
+    iframe = 30;
     endpt = endpt.astype('int')
     # ax.scatter(xb[iframe][:,0]*pxum, xb[iframe][:,1]*pxum,\
     #             xb[iframe][:,2]*pxum, c = 'k', alpha=0.1)
@@ -327,20 +334,20 @@ if plotin3D:
     
     origin = [0,0,0]
     X, Y, Z = zip(origin)
-    # U0, V0, W0 = zip(list(5*vectNInput[iframe,0]))
-    # U1, V1, W1 = zip(list(5*vectNInput[iframe,1]))
-    # U2, V2, W2 = zip(list(5*vectNInput[iframe,2]))
+    U0, V0, W0 = zip(list(5*vectNInput[iframe,0]))
+    U1, V1, W1 = zip(list(5*vectNInput[iframe,1]))
+    U2, V2, W2 = zip(list(5*vectNInput[iframe,2]))
     # Uaux, Vaux, Waux = zip(xb0skel[iframe][endpt[iframe]]*pxum)
     Un1, Vn1, Wn1 = zip(list(10*localAxes[iframe,0])) 
     Un2, Vn2, Wn2 = zip(list(5*localAxes[iframe,1])) 
     Un3, Vn3, Wn3 = zip(list(5*localAxes[iframe,2]))
     # ax.quiver(X,Y,Z,Uaux,Vaux,Waux, color='b')
-    # ax.quiver(X,Y,Z,U0,V0,W0,color='g')
+    ax.quiver(X,Y,Z,U0,V0,W0,color='b')
     # ax.quiver(X,Y,Z,U1,V1,W1,color='g')
     # ax.quiver(X,Y,Z,U2,V2,W2,color='g',alpha=0.5)
     ax.quiver(X,Y,Z,Un1,Vn1,Wn1,color='r')
-    ax.quiver(X,Y,Z,Un2,Vn2,Wn2,color='g')
-    ax.quiver(X,Y,Z,Un3,Vn3,Wn3,color='g')
+    # ax.quiver(X,Y,Z,Un2,Vn2,Wn2,color='g')
+    # ax.quiver(X,Y,Z,Un3,Vn3,Wn3,color='g')
 
 #%% plot the fluctuations
 plotFluc = True; flucToPDF = False
@@ -469,7 +476,7 @@ if allMSD:
     time_x, MSD_yaw = regMSD(0.8, Nframes, EuAng[:,2], vol_exp)
 
     # Fit the MSDs curve
-    rData = 0.1;
+    rData = 0.05;
     nData = np.int32(rData*Nframes) # number of data fitted
     def MSDfit(x, a):
         return a * x   
@@ -510,13 +517,15 @@ if allMSD:
 
     # Print all diffusion constant
     print('Diffusion constants')
-    print('parallel, perpendicular:', fitN[0]/6, fitS[0]/6)
-    print('pitch, roll, yaw:', fitPitch[0]/6, fitRoll[0]/6, fitYaw[0]/6)
+    print('parallel, perpendicular, ratio:',
+          fitN[0]/(6*vol_exp), fitS[0]/(6*vol_exp), fitN[0]/fitS[0])
+    print('pitch, roll, yaw:', fitPitch[0]/(6*vol_exp),\
+                               fitRoll[0]/(6*vol_exp), fitYaw[0]/(6*vol_exp))
 
     # Plot all the MSDs  
     fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
     ax0.plot(time_x,MSD_N_in,c='g',marker="^",mfc='none',ls='None',alpha=0.5)   
-    ax0.plot(time_x,MSD_S_in,c='g',marker="s",mfc='none',ls='None',alpha=0.5)  
+    ax0.plot(time_x,MSD_S_in,c='g',marker="s",mfc='none',ls='None',alpha=0.5)
     ax0.plot(time_x,MSD_N,c='k',marker="^",mfc='none',ms=9,ls='None',alpha=0.5)   
     ax0.plot(time_x,MSD_S,c='k',marker="s",mfc='none',ms=9,ls='None',alpha=0.5)
     # ax0.plot(time_x,MSD_cm,c='k',marker="s",mfc='none',ms=9,ls='None',alpha=0.5)    
@@ -528,7 +537,7 @@ if allMSD:
     ax0.set_xlabel(r'Log($\tau$) [sec]');
     ax0.set_ylabel(r'Log(MSD) [$\mu m^2$/sec]')
     # ax0.set_ylim([np.exp(-0.5*10e-1),np.exp(10^4)])
-    ax0.legend(["parallel","perpendicular"])
+    ax0.legend(["parallel","perpendicular", "perpendicular2"])
     if msdToPDF: fig0.savefig(r'./PDF/MSD-trans.pdf')
 
     fig3,ax3 = plt.subplots(dpi=300, figsize=(6,5))

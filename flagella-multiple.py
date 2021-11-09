@@ -20,18 +20,23 @@ from natsort import natsorted, ns
 from pathlib import Path
 
 path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
+# path = r"D:\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
 # path = r"/mnt/opm2/20211022_franky/"
 
-# fName = path + "/20211022a_suc40_h15um"
+fName = path + "/20211022a_suc40_h15um"
 # fName = path + "/20211022b_suc40_h30um"
 # fName = path + "/20211018a_suc50_h15um"
 # fName = path + "/20211018b_suc50_h30um"
-# fName = path + "/20211004f_70suc_h15um"
-# fName = path + "/20211004g_70suc_h30um" 
-fName = path + "/20211022c_suc70_h15um"
+# fName = path + "/20211022c_suc70_h15um"
 # fName = path + "/20211022d_suc70_h30um" 
 
 images = glob.glob(fName + '/*.npy')
+
+vis70 = 673 # 70% sucrose, unit: mPa.s (Quintas et al. 2005)
+vis50 = 15.04 # 50% sucrose, unit: mPa.s (Telis et al. 2005)
+vis40 = 6.20 # 40% sucrose, unit: mPa.s (Telis et al. 2005)
+suc_per = str(40)
+vis = vis40
 
 # Parameters
 pxum = 0.115; 
@@ -41,12 +46,6 @@ stepsize_nm = 400
 # vol_exp = 1/ (sweep_um/stepsize_nm * camExposure_ms)
 vol_exp = 1e-3 * camExposure_ms * (sweep_um*1e3/stepsize_nm)  # in sec
 thresvalue_in = 0.8
-
-vis70 = 673 # 70% sucrose, unit: mPa.s (Quintas et al. 2005)
-vis50 = 15.04 # 50% sucrose, unit: mPa.s (Telis et al. 2005)
-vis40 = 6.20 # 40% sucrose, unit: mPa.s (Telis et al. 2005)
-suc_per = str(70)
-vis = vis70
 
 start = time.perf_counter()
 #%% Go through every folder
@@ -179,13 +178,14 @@ for j in range(len(images)):
         dirAng[frame,2] = np.arccos(n1[frame,2])
     
     # Store all the tracking information
-    ate = np.asarray([EuAng, dirAng, cm])
+    ate = np.asarray([EuAng, dirAng, cm, localAxes])
     np.save(fileName[:len(fileName)-4] + "-results",ate)
     
     # All the MSD of interest
-    fromMSD = msd.theMSD(0.8, Nframes, cm, dirAng, EuAng[:,1], vol_exp)
-    time_x, MSD_N, MSD_S1, MSD_S2 = fromMSD.trans_MSD()
-    time_x, MSD_combo = fromMSD.combo_MSD()
+    fromMSD = msd.theMSD(0.8, Nframes, cm, dirAng,\
+                         EuAng[:,1], localAxes, vol_exp)
+    time_x, MSD_N, MSD_S, MSD_combo = fromMSD.trans_combo_MSD()
+    # time_x, MSD_combo = fromMSD.combo_MSD()
     time_x, MSD_pitch = regMSD(0.8, Nframes, EuAng[:,0], vol_exp)
     time_x, MSD_roll = regMSD(0.8, Nframes, EuAng[:,1], vol_exp)
     time_x, MSD_yaw = regMSD(0.8, Nframes, EuAng[:,2], vol_exp)
@@ -195,8 +195,7 @@ for j in range(len(images)):
     def MSDfit(x, a):
         return a * x   
     fitN = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_N[0:nData],p0=0.1)
-    fitS1 = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_S1[0:nData],p0=0.1)
-    fitS2 = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_S2[0:nData],p0=0.1)
+    fitS = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_S[0:nData],p0=0.1)
     fitPitch = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_pitch[0:nData],p0=0.1)
     fitRoll = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_roll[0:nData],p0=0.1)
     fitYaw = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_yaw[0:nData],p0=0.1)
@@ -216,7 +215,7 @@ for j in range(len(images)):
           " with std = ", np.std(lenfla))
     print("flagella pitch-length [um] = ", np.mean(pitfla),\
           " with std = ", np.std(pitfla))
-    print("Fit for parallel, perpen-1, perpen-2:",fitN[0], fitS1[0], fitS2[0])
+    print("Fit for parallel, perpen-1, perpen-2:",fitN[0], fitS[0])
     print("Fit for pitch, roll, yaw:",fitPitch[0], fitRoll[0], fitYaw[0])
     print("Fit for combo:",fitCombo[0])
     print("Matrix A, B, D for " + fName)
@@ -231,7 +230,7 @@ for j in range(len(images)):
             ['radius [um]', np.mean(radfla),np.std(radfla)],\
             ['length [um]', np.mean(lenfla),np.std(lenfla)],\
             ['pitch [um]', np.mean(pitfla),np.std(pitfla)],\
-            ['trans-fit [um^2/sec^2]',fitN[0][0], fitS1[0][0], fitS2[0][0]],\
+            ['trans-fit [um^2/sec^2]',fitN[0][0], fitS[0][0]],\
             ['rotation-fit [rad^2/sec^2]',fitPitch[0][0], fitRoll[0][0], fitYaw[0][0]],\
             ['combo-fit [um.rad/sec^2]',fitCombo[0][0]],\
             ['A, B, D', A[0], B[0], D[0]],\
