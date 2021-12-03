@@ -14,136 +14,77 @@ from matmatrix import *
 import helixFun
 import imProcess
 import msd
-from msd import regMSD, trans_stepSize, rot_stepSize
-from lmfit import Model
-from scipy.special import erf
-import movingHx  
-   
-simORreal = True # True: simulation, False: actual data
-if simORreal: # synthetic data
+from msd import regMSD, trans_stepSize, rot_stepSize, trans_stepSize_all
 
-    # time settings in the light sheet
-    pxum = 0.115; 
-    camExposure_ms = 2
-    sweep_um = 15
-    stepsize_nm = 400
-    # vol_exp = 1e-3/ (sweep_um/stepsize_nm * camExposure_ms) # in sec
-    vol_exp = 1e-3 * camExposure_ms * (sweep_um*1e3/stepsize_nm) 
+import movingHx
 
-    # input helix geometry
-    length = 8; radius = 0.3; pitchHx = 2.5 # all three in um
-    chirality = 1;  # left-handed: 1, right-handed: -1
-    resol = 100     # number of points/resolutions
-    
-    # input helix motion
-    Nframes = 100; spin = 0; drift = 0;
-    Dperp = 0.05; Dpar = 3*Dperp;   
-    Dpitch = 0; Droll = 0; Dyaw = 0;           
-    
-    # input helix-and-noise level
-    hxInt = 200; hxVar = 0;
-    noiseInt = 0; noiseVar = 0;
-    
-    # create movies of synthetic helix
-    fromHx = movingHx.createMovHx(length, radius, pitchHx,\
-                                  chirality, resol, Nframes,\
-                                  Dpar, Dperp,\
-                                  Dpitch, Droll, Dyaw,\
-                                  spin, drift,\
-                                  hxInt, hxVar, noiseInt, noiseVar, vol_exp)
-    intensity, cmInput, EuAngInput, dirAngInput, vectNInput = fromHx.movHx()
-    # da.to_npy_stack('syn.npy',da.from_array(intensity))
-    # np.save('syn-att.npy',np.array([cmInput, EuAngInput, dirAngInput]))
-    # np.save('syn-vect.npy',np.array(vectNInput))
-    
-    
-    
-    Nframes = intensity.shape[0]
-        
-    print('--synthetic data creation is completed--')
-else:
-    # path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
-    path = r"D:\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data\synthetic-data"
-    # fName = path + '/20211022d_suc70_h30um/suc70-h30-23-A.npy'
-    fName = path + '/syn.npy'
-    cmInput, EuAngInput, dirAngInput = np.load(path + '/syn-att.npy')
-    vectNInput = np.load(path + '/syn-vect.npy')
-    
-    intensity = da.from_npy_stack(fName)
-    Nframes = intensity.shape[0]
-    frame0 = intensity[0].compute()
-    print("Max pixel:", np.max(frame0[np.nonzero(frame0)]),"\n",\
-          "Min pixel:", np.min(frame0[np.nonzero(frame0)]),"\n",\
-          "Avg pixel:", np.mean(frame0[np.nonzero(frame0)]),"\n",\
-          "Num frame:", len(intensity) )
+# time settings in the light sheet
+pxum = 0.115; 
+camExposure_ms = 2
+sweep_um = 15
+stepsize_nm = 400
+vol_exp = 1e-3 * camExposure_ms * (sweep_um*1e3/stepsize_nm) / 10
 
-#%% Image analysis and curve fitting
+# input helix geometry
+length = 8; radius = 0.3; pitchHx = 2.5 # all three in um
+chirality = 1;  # left-handed: 1, right-handed: -1
+resol = 100     # number of points/resolutions
+
+# input helix motion
+Nframes = 300; spin = 0; drift = 0;
+Dperp = 0.3; Dpar = 2*Dperp;            # in um^2/sec
+Dpitch = 0.1; Droll = 5; Dyaw = 0.1;    # in rad^2/sec
+
+# input helix-and-noise level
+hxInt = 200; hxVar = 0;
+noiseInt = 0; noiseVar = 0;
+
+# Image analysis and curve fitting
 xb = []; xb0 = []; xp = []; xp0 = []
 blobSkel = []; blobBin =[]; blobSize = []
 eigenvec = []; blobRaw = []; xb0 = []
     
 lenfla = np.zeros(Nframes)
-cm = np.zeros([Nframes,3]); 
+cmOutput = np.zeros([Nframes,3]); 
+localAxesOutput = np.zeros([Nframes,3,3]);
 eigenvec = np.zeros([Nframes,3,3]);
 coord = [];
-localAxes = np.zeros([Nframes,3,3]);
 endpt = np.zeros([Nframes]).astype('int')
-    
-pxum = 0.115
+ep_ref = np.zeros([Nframes,3])
+
 start = time.perf_counter()
+# Generate diffusion
+fromHx = movingHx.createMovHx(length, radius, pitchHx,\
+                              chirality, resol, Nframes,\
+                              Dpar, Dperp, Dpitch, Droll, Dyaw,\
+                              spin, drift, hxInt, hxVar, noiseInt,\
+                              noiseVar, vol_exp)
+cmInput, EuAngInput, vectNInput = fromHx.movHx()
 
-for frame in range(len(intensity)):
+# analyze movies
+for frame in range(Nframes):
 
-    if simORreal:
-        # Extract coordinates from the image (no threshold in Napari)
-        img_temp = intensity[frame]
-        coord.append(np.argwhere(img_temp))
-        X0 = coord[frame]
-        xb.append(X0)
-        CM1 = np.array([sum(X0[:,j]) for j in range(X0.shape[1])])/X0.shape[0]
-        cm[frame,:] = CM1
-            
-        # Using threshold (threshold in Napari can be seen)
-        # thresvalue = 0.9; sizes = 1200;    
-        # fromImgPro = imProcess.ImPro(intensity[frame],thresvalue)
-        # img = fromImgPro.thresVol()                     # binary image
-        # skel,blob,sizes = fromImgPro.selectLargest()    # largest body only
-        # X0 = fromImgPro.extCoord()          # extract coordinates
-        # CM1 = fromImgPro.computeCM()        # compute center of mass
-        # blobBin.append(blob); blobSize.append(sizes);
-        # blobSkel.append(skel); blobRaw.append(img);
-        # xb.append(X0); cm[frame,:] = CM1
- 
-    else:
-        # Image processing
-        tstart_thresh = time.perf_counter()
-        thresvalue = 0.8; sizes = 0;    
-        fromImgPro = imProcess.ImPro(intensity[frame],thresvalue)
-        img = fromImgPro.thresVol()                     # binary image
-        sizes = max(fromImgPro.selectLargest()[0])    # largest body only
+    # Generate 3D movies
+    intensity = fromHx.makeMov(cmInput[frame], vectNInput[frame])
+
+    # Extract coordinates from the image (no threshold in Napari)
+    img_temp = intensity
+    coord.append(np.argwhere(img_temp))
+    X0 = coord[frame]
+    xb.append(X0)
+    CM1 = np.array([sum(X0[:,j]) for j in range(X0.shape[1])])/X0.shape[0]
+    cmOutput[frame,:] = CM1
         
-        att = 0;
-        if sizes < 900:
-            att = 1
-            while sizes < 900 and att < 20: 
-                thresvalue = thresvalue - 0.025
-                fromImgPro = imProcess.ImPro(intensity[frame],thresvalue)
-                img = fromImgPro.thresVol()                 
-                sizes = max(fromImgPro.selectLargest()[0])
-                att = att + 1
-        thres_dur = time.perf_counter() - tstart_thresh
-        print("thresholding took %0.2fs with %d attemps"\
-              % (thres_dur, att))
-
-        blob = fromImgPro.BlobAndSkel()
-                   
-        X0 = fromImgPro.extCoord()          # extract coordinates
-        CM1 = fromImgPro.computeCM()        # compute center of mass
-
-        # Store binary image, coordinates and center of mass
-        blobBin.append(blob); blobSize.append(sizes);
-        blobRaw.append(img);
-        xb.append(X0); cm[frame,:] = CM1
+    # Using threshold (threshold in Napari can be seen)
+    # thresvalue = 0.9; sizes = 1200;    
+    # fromImgPro = imProcess.ImPro(intensity[frame],thresvalue)
+    # img = fromImgPro.thresVol()                     # binary image
+    # skel,blob,sizes = fromImgPro.selectLargest()    # largest body only
+    # X0 = fromImgPro.extCoord()          # extract coordinates
+    # CM1 = fromImgPro.computeCM()        # compute center of mass
+    # blobBin.append(blob); blobSize.append(sizes);
+    # blobSkel.append(skel); blobRaw.append(img);
+    # xb.append(X0); cm[frame,:] = CM1
            
     # Compute the flagella length    
     lenfla[frame] = flaLength(X0)*pxum
@@ -160,13 +101,13 @@ for frame in range(len(intensity)):
     else:
         axes, axes_ref = consistentPCA(axes, axes_ref)
     
-    # Find the second vector orthogonal to the major axis using skeletonize
+    # Find the second vector orthogonal to the major axis
     if frame == 0:
-        ep_ref = 0
+        ep_ref[frame] = 0
         ep, Coord = endPoints(X0, CM1, axes)
     else:
         ep, Coord = endPoints(X0, CM1, axes)
-        ep_ref = ep
+        ep_ref[frame] = ep
     endpt[frame] = ep.astype('int')
     xb0.append(Coord)
     
@@ -177,7 +118,8 @@ for frame in range(len(intensity)):
     n2 /= np.linalg.norm(n2)
     n3 = np.cross(n1,n2)
     n3 /= np.linalg.norm(n3)
-    localAxes[frame,0] = n1; localAxes[frame,1] = n2; localAxes[frame,2] = n3;
+    localAxesOutput[frame,0] = n1; localAxesOutput[frame,1] = n2;
+    localAxesOutput[frame,2] = n3;
     
     # Rotate to the principal axes
     P0 = np.matmul(axes,X.T).T
@@ -194,68 +136,33 @@ for frame in range(len(intensity)):
     print('Processed done for frame#:',frame,
           '\n elapsed time (sec):',np.round(end-start,2),
           '\n flagella length (um):', np.round(lenfla[frame],2))
+    frame = frame + 1
+    del intensity
 
 # write blobBin external file as Numpy array
 # blobBin = da.from_array(blobBin)
 # da.to_npy_stack(fName[:len(fName)-4] + '-threshold.npy',blobBin)  
 
-#%% Reload movies to check
-checknpy = 0
-makeMov = 0
-if checknpy:
-
-    viewer = napari.Viewer(ndisplay=3)
-    viewer.add_image(intensity, contrast_limits=[0,200],\
-                     scale=[0.115,.115,.115],\
-                      multiscale=False,colormap='gray',opacity=1)  
-    # viewer.add_image(blobBin, contrast_limits=[0,1],\
-    #                   scale=[0.115,.115,.115],\
-    #                   multiscale=False,colormap='green',opacity=0.5) 
-    viewer.scale_bar.visible=True
-    viewer.scale_bar.unit='um'
-    viewer.scale_bar.position='top_right'
-    viewer.axes.visible = True
-    napari.run()
-
-if makeMov:
-    from naparimovie import Movie
-    # blobBin = da.from_array(blobBin)
-    # blobSkel = da.from_array(blobSkel)
-    
-    viewer = napari.Viewer(ndisplay=3)
-    viewer.add_image(intensity, contrast_limits=[100,300],\
-                     scale=[0.115,.115,.115],\
-                      multiscale=False,colormap='gray',opacity=1)  
-    viewer.add_image(blobBin, contrast_limits=[0,1],\
-                      scale=[0.115,.115,.115],\
-                      multiscale=False,colormap='green',opacity=0.5)
-    viewer.add_image(blobSkel, contrast_limits=[0,1],\
-                      scale=[0.115,.115,.115],\
-                      multiscale=False,colormap='green',opacity=0.5)
-    viewer.scale_bar.visible=True
-    viewer.scale_bar.unit='um'
-    viewer.scale_bar.position='top_right'
-    viewer.axes.visible = True
-    movie = Movie(myviewer=viewer)
-    
-    movie.create_state_dict_from_script('./moviecommands/moviecommands4.txt')
-    # movie.make_movie("synthetic.mov",fps=10)
-    movie.make_movie(fName+ "-skel.mov",fps=10)  
-
+#%% Take every n-step: cm, localAxes
+cm = cmOutput[::1]
+localAxes = localAxesOutput[::1]
 
 #%% Compute pitch, roll, and yaw (Bernie's method)
 n1 = localAxes[:,0]; n2 = localAxes[:,1]; n3 = localAxes[:,2]
-dpitch = np.zeros(Nframes); droll = np.zeros(Nframes); dyaw = np.zeros(Nframes)
+# n1 = vectNInput[:,0]; n2 = vectNInput[:,1]; n3 = vectNInput[:,2]
+Nframes = len(cm);
+dpitch = np.zeros(Nframes); droll = np.zeros(Nframes);
+dyaw = np.zeros(Nframes)
 for frame in range(Nframes-1):
-    dpitch[frame] = np.dot(n2[frame], n1[frame+1] - n1[frame])
-    droll[frame] = np.dot(n3[frame], n2[frame+1] - n2[frame])
-    dyaw[frame] = np.dot(n1[frame], n3[frame+1] - n3[frame])
-    # dpitch[frame] = np.dot((n2[frame]+n2[frame+1])/abs(n2[frame]+n2[frame+1]),\
-    #                         n1[frame+1] - n1[frame])
-    # droll[frame] = np.dot((n3[frame]+n3[frame+1])/abs(n3[frame]+n3[frame+1]),\
-    #                       n2[frame+1] - n2[frame])
-    # dyaw[frame] = np.dot(-(n3[frame]+n3[frame+1])/abs(n3[frame]+n3[frame+1]),\
-    #                       n1[frame+1] - n1[frame])
+    # dpitch[frame] = np.dot(n2[frame], n1[frame+1] - n1[frame])
+    # droll[frame] = np.dot(n3[frame], n2[frame+1] - n2[frame])
+    # dyaw[frame] = np.dot(n1[frame], n3[frame+1] - n3[frame])
+    dpitch[frame] = np.dot((n2[frame]+n2[frame+1])/abs(n2[frame]+n2[frame+1]),\
+                            n1[frame+1] - n1[frame])
+    droll[frame] = np.dot((n3[frame]+n3[frame+1])/abs(n3[frame]+n3[frame+1]),\
+                          n2[frame+1] - n2[frame])
+    dyaw[frame] = np.dot(-(n3[frame]+n3[frame+1])/abs(n3[frame]+n3[frame+1]),\
+                          n1[frame+1] - n1[frame])
 EuAng = np.zeros([Nframes,3]);
 for frame in range(Nframes):
     EuAng[frame,0] = np.sum(dpitch[0:frame+1])
@@ -279,83 +186,191 @@ for frame in range(Nframes):
     EuAng2[frame,0] = np.sum(dpitch2[0:frame+1])
     EuAng2[frame,1] = np.sum(droll2[0:frame+1])
     EuAng2[frame,2] = np.sum(dyaw2[0:frame+1])
-    
-# Compute absolute angle relative to x, y,and z axis
-n1 = localAxes[:,0]
-dirAng = np.zeros([Nframes,3]); 
-for frame in range(Nframes):
-    dirAng[frame,0] = np.arccos(n1[frame,0])
-    dirAng[frame,1] = np.arccos(n1[frame,1])
-    dirAng[frame,2] = np.arccos(n1[frame,2])
   
 #%% Compute diffusion constant from step size
 
 # generate the step size
-transSS = trans_stepSize(cm, localAxes)
-rotSS =  rot_stepSize(EuAng)    
+# transSS = trans_stepSize_all(cm, localAxes)
+# transSS_in  = trans_stepSize_all(cmInput, vectNInput)
+# rotSS =  rot_stepSize(EuAng)    
 
-def gauss_cdf(x, mu, sigma):
-    Fx = 1/2.0 * (1. + erf( (x-mu)/ (sigma*np.sqrt(2.))))
-    return Fx
+nFinal = 10;
+sigma2_par = np.zeros(nFinal); sigma2_perp1 = np.zeros(nFinal);
+sigma2_perp2 = np.zeros(nFinal);
+sigma2_par_in = np.zeros(nFinal); sigma2_perp1_in = np.zeros(nFinal);
+sigma2_perp2_in = np.zeros(nFinal);
+meanPar = np.zeros(nFinal); meanPerp1 = np.zeros(nFinal);
+meanPerp2 = np.zeros(nFinal);
+meanPar_in = np.zeros(nFinal); meanPerp1_in = np.zeros(nFinal);
+meanPerp2_in = np.zeros(nFinal);
+for k in range(1,nFinal+1):
+# for k in range(len(transSS)):
 
-def gauss_pdf(x, mu, sigma):
-    Fx = np.exp(-0.5*(x-mu)**2/sigma**2) / (sigma * np.sqrt(2*np.pi))
-    return Fx
+    transSS = trans_stepSize(cm[::k], localAxes[::k])
+    transSS_in  = trans_stepSize(cmInput[::k], vectNInput[::k])    
 
-def fitCDF(x):
-    model = Model(gauss_cdf, prefix='g1_')
-    params = model.make_params(g1_mu = 0, g1_sigma = 0.5)
-    yaxis = np.linspace(0,1,len(x), endpoint=False)
-    xaxis = np.sort(x)
-    result = model.fit(yaxis,params,x=xaxis)
-    mean = result.params['g1_mu'].value
-    sigma = result.params['g1_sigma'].value
-    return mean, sigma
+    # Fit CDF
+    mean_par, sigma_par = fitCDF(transSS[:,0])
+    mean_perp1, sigma_perp1 = fitCDF(transSS[:,1])
+    mean_perp2, sigma_perp2 = fitCDF(transSS[:,2])
+    
+    mean_par_in, sigma_par_in = fitCDF(transSS_in[:,0])
+    mean_perp1_in, sigma_perp1_in = fitCDF(transSS_in[:,1])
+    mean_perp2_in, sigma_perp2_in = fitCDF(transSS_in[:,2])
 
-# Translation
-mean_par, sigma_par = fitCDF(transSS[:,0])
-mean_perp1, sigma_perp1 = fitCDF(transSS[:,1])
-mean_perp2, sigma_perp2 = fitCDF(transSS[:,2])
-Dt_par = sigma_par**2 / (2 * vol_exp)
-Dt_perp1 = sigma_perp1**2 / (2 * vol_exp)
-Dt_perp2 = sigma_perp2**2 / (2 * vol_exp)
+    # variance
+    meanPar[k-1] = mean_par; meanPerp1[k-1] = mean_perp1; meanPerp2[k-1] = mean_perp2
+    sigma2_par[k-1] = sigma_par**2
+    sigma2_perp1[k-1] = sigma_perp1**2
+    sigma2_perp2[k-1] = sigma_perp2**2
+    
+    meanPar_in[k-1] = mean_par_in; meanPerp1_in[k-1] = mean_perp1;
+    meanPerp2_in[k-1] = mean_perp2_in
+    sigma2_par_in[k-1] = sigma_par**2
+    sigma2_perp1_in[k-1] = sigma_perp1**2
+    sigma2_perp2_in[k-1] = sigma_perp2**2
+    
+xaxis = np.arange(1,nFinal+1)
+fig,ax = plt.subplots(dpi=300, figsize=(6,5))
+ax.plot([xaxis[0], xaxis[-1]], [Dpar, Dpar], 'r')
+ax.plot([xaxis[0], xaxis[-1]], [Dperp, Dperp], 'r')
+ax.plot(xaxis, sigma2_par_in/(6*vol_exp*xaxis), c='g', marker="^",mfc='none',ms=9,ls='None',alpha=0.5)  
+ax.plot(xaxis, sigma2_perp1_in/(6*vol_exp*xaxis), c='g', marker="s",mfc='none',ms=9,ls='None',alpha=0.5)
+ax.plot(xaxis, sigma2_perp2_in/(6*vol_exp*xaxis), c='g', marker="o",mfc='none',ms=9,ls='None',alpha=0.5)
+ax.plot(xaxis, sigma2_par/(6*vol_exp*xaxis), c='k', marker="^",mfc='none',ms=15,ls='None',alpha=0.5)  
+ax.plot(xaxis, sigma2_perp1/(6*vol_exp*xaxis),c='k', marker="s",mfc='none',ms=15,ls='None',alpha=0.5)
+ax.plot(xaxis, sigma2_perp2/(6*vol_exp*xaxis),c='k', marker="o",mfc='none',ms=15,ls='None',alpha=0.5)
+ax.legend(["parallel","perpendicular-1", "perpendicular-2"])
+ax.set_xlabel(r'$\Delta\tau$ [sec]');
+# ax.set_ylim([-0.9, 40]);
+ax.set_ylabel(r'$D [\mu m^2/sec]$') 
+
+# plot CDF
+# k = 0;
+# xplot = np.linspace(-2,2,1000, endpoint=False)
+# y_par = gauss_cdf(xplot, meanPar[k], np.sqrt(sigma2_par[k]))
+# y_perp1 = gauss_cdf(xplot, meanPerp1[k], np.sqrt(sigma2_perp1[k]))
+# y_perp2 = gauss_cdf(xplot, meanPerp2[k], np.sqrt(sigma2_perp2[k]))
+
+# plt.rcParams.update({'font.size': 15})
+# fig1,ax1 = plt.subplots(dpi=300, figsize=(6,5))
+# ax1.plot(xplot, y_par,'C0', alpha=0.5)
+# ax1.plot(xplot, y_perp1,'C1', alpha=0.5)
+# ax1.plot(xplot, y_perp2,'C2', alpha=0.5)
+# ax1.plot(np.sort(transSS[k][:,0]),
+#           np.linspace(0,1,len(transSS[k][:,0]),endpoint=False),\
+#           'C0o',MarkerSize=3, alpha=0.5)
+# ax1.plot(np.sort(transSS[k][:,1]),
+#           np.linspace(0,1,len(transSS[k][:,1]),endpoint=False),\
+#           'C1o',MarkerSize=3, alpha=0.5)
+# ax1.plot(np.sort(transSS[k][:,2]),
+#           np.linspace(0,1,len(transSS[k][:,2]),endpoint=False),\
+#           'C2o',MarkerSize=3, alpha=0.5)
+# ax1.set_xlabel(r'Step size [$\mu$m]');
+# ax1.set_ylabel(r'Cumulative Probability')
+# ax1.set_ylim([-0.05, 1.1]); #ax1.set_xlim([0, r_xaxis]);
+# ax1.legend(['parallel','perpendicular-1','perpendicular-2'])
+
+# # Plot PDF
+# ypdf_par = gauss_pdf(xplot, meanPar[k], np.sqrt(sigma2_par[k]))
+# ypdf_perp1 = gauss_pdf(xplot, meanPerp1[k], np.sqrt(sigma2_perp1[k]))
+# ypdf_perp2 = gauss_pdf(xplot, meanPerp2[k], np.sqrt(sigma2_perp2[k]))
+
+# # plot PDF
+# plt.rcParams.update({'font.size': 15})
+# fig1,ax1 = plt.subplots(dpi=300, figsize=(6,5))
+# ax1.plot(xplot, ypdf_par,'C0', alpha=0.8)
+# ax1.plot(xplot, ypdf_perp1,'C1', alpha=0.8)
+# ax1.plot(xplot, ypdf_perp2,'C2', alpha=0.8)
+# ax1.hist(transSS[k][:,0], bins='fd', density=True, color='C0', alpha=0.3)
+# ax1.hist(transSS[k][:,1], bins='fd', density=True, color='C1', alpha=0.3)
+# ax1.hist(transSS[k][:,2], bins='fd', density=True, color='C2', alpha=0.3)
+# ax1.set_xlabel(r'Step size [$\mu$m]');
+# ax1.set_ylabel(r'Probability density')
+# ax1.set_xlim([-2.5, 2.5]);
+# ax1.legend(['parallel','perpendicular-1','perpendicular-2'])
+
+# Dt_par = sigma_par**2 / (6 * vol_exp)
+# Dt_perp1 = sigma_perp1**2 / (6 * vol_exp)
+# Dt_perp2 = sigma_perp2**2 / (6 * vol_exp)
+
+# # Print all diffusion constant
+# print('Diffusion constants')
+# print('parallel, perpendicular-1, perpendicular-2, ratio:',
+#       Dt_par, Dt_perp1, Dt_perp2, Dt_par/Dt_perp1)
+# print('pitch, roll, yaw:', D_pitch, D_roll, D_yaw)
 
 # Rotation
-mean_pitch, sigma_pitch = fitCDF(rotSS[:,0])
-mean_roll, sigma_roll = fitCDF(rotSS[:,1])
-mean_yaw, sigma_yaw = fitCDF(rotSS[:,2])
-D_pitch = sigma_pitch**2 / (2 * vol_exp)
-D_roll = sigma_roll**2 / (2 * vol_exp)
-D_yaw = sigma_yaw**2 / (2 * vol_exp)
+# mean_pitch, sigma_pitch = fitCDF(rotSS[:,0])
+# mean_roll, sigma_roll = fitCDF(rotSS[:,1])
+# mean_yaw, sigma_yaw = fitCDF(rotSS[:,2])
+# D_pitch = sigma_pitch**2 / (6 * vol_exp)
+# D_roll = sigma_roll**2 / (6 * vol_exp)
+# D_yaw = sigma_yaw**2 / (6 * vol_exp)
+    
+# D_combo = np.sqrt(Dt_par*D_roll)
+    
 
-D_combo = np.sqrt(Dt_par*D_roll)
+#%% Check MSD
+nFinal = 5;
+fitN_all = np.zeros(nFinal); fitS_all = np.zeros(nFinal);
+fitS2_all = np.zeros(nFinal);
+fitN_in_all = np.zeros(nFinal); fitS_in_all = np.zeros(nFinal);
+fitS2_in_all = np.zeros(nFinal); 
+for k in range(1,nFinal):
+    fromMSD = msd.theMSD(len(cmOutput[::k]), cmOutput[::k], EuAng[:,1],
+                         localAxesOutput[::k], vol_exp/k)
+    time_x, MSD_N, MSD_S, MSD_S2, MSD_combo = fromMSD.trans_combo_MSD()
+    fromMSD_in = msd.theMSD(len(cmInput[::k]), cmInput[::k],
+                            EuAngInput[:,1], vectNInput[::k], vol_exp/k)
+    time_x, MSD_N_in, MSD_S_in, MSD_S2_in,\
+        MSD_combo_in = fromMSD_in.trans_combo_MSD()
+        
+    fitN = optimize.curve_fit(MSDfit, time_x[0:3], MSD_N[0:3],p0=0.1)
+    fitS = optimize.curve_fit(MSDfit, time_x[0:3], MSD_S[0:3],p0=0.1)
+    fitS2 = optimize.curve_fit(MSDfit, time_x[0:3], MSD_S2[0:3],p0=0.1)
+    fitN_in = optimize.curve_fit(MSDfit, time_x[0:3],\
+                                 MSD_N_in[0:3],p0=0.1)
+    fitS_in = optimize.curve_fit(MSDfit, time_x[0:3],\
+                                 MSD_S_in[0:3],p0=0.1)
+    fitS2_in = optimize.curve_fit(MSDfit, time_x[0:3],\
+                                  MSD_S2_in[0:3],p0=0.1)
+        
+        
+    fitN_all[k] = fitN[0]; fitS_all[k] = fitS[0];
+    fitS2_all[k] = fitS2[0];
+    fitN_in_all[k] = fitN[0]; fitS_in_all[k] = fitS_in[0];
+    fitS2_in_all[k] = fitS2_in[0];
 
-# Print all diffusion constant
-print('Diffusion constants')
-print('parallel, perpendicular, ratio:',
-      Dt_par/(6*vol_exp), Dt_perp1/(6*vol_exp), Dt_par/Dt_perp1)
-print('pitch, roll, yaw:', D_pitch/(6*vol_exp),\
-                           D_roll/(6*vol_exp), D_yaw/(6*vol_exp))
+xaxis = np.linspace(1,nFinal,nFinal)
+fig,ax = plt.subplots(dpi=300, figsize=(6,5))
+ax.plot(xaxis, fitN_in_all/6, c='g', marker="^",mfc='none',ms=9,ls='None',alpha=0.5)  
+ax.plot(xaxis, fitS_in_all/6, c='g', marker="s",mfc='none',ms=9,ls='None',alpha=0.5)
+ax.plot(xaxis, fitS2_in_all/6, c='g', marker="o",mfc='none',ms=9,ls='None',alpha=0.5)
+ax.plot(xaxis, fitN_all/6, c='k', marker="^",mfc='none',ms=9,ls='None',alpha=0.5)  
+ax.plot(xaxis, fitS_all/6,c='k', marker="s",mfc='none',ms=9,ls='None',alpha=0.5)
+ax.plot(xaxis, fitS2_all/6,c='k', marker="o",mfc='none',ms=9,ls='None',alpha=0.5)
+# ax.set_xscale('log'); ax0.set_yscale('log'); 
+ax.legend(["parallel","perpendicular-1", "perpendicular-2"])
+ax.set_xlabel(r'$\Delta\tau$ [sec]');
+ax.set_ylabel(r'$D [\mu m^2/sec]$') 
+
   
 #%% Compute and plot the MSD
 allMSD = True; msdToPDF = False
 if allMSD: 
            
     # All the MSD of interest
-    fromMSD = msd.theMSD(0.8, Nframes, cm, \
-                         EuAng[:,1], localAxes, vol_exp)
-    # time_x, MSD_N, MSD_S, MSD_combo = fromMSD.trans_combo_MSD()
+    fromMSD = msd.theMSD(Nframes, cm, EuAng[:,1], localAxes, vol_exp)
     time_x, MSD_N, MSD_S, MSD_S2, MSD_combo = fromMSD.trans_combo_MSD()
-    time_x, MSD_cm = regMSD(0.8, Nframes, cm[:,0], vol_exp)
-    time_x, MSD_pitch = regMSD(0.8, Nframes, EuAng[:,0], vol_exp)
-    time_x, MSD_roll = regMSD(0.8, Nframes, EuAng[:,1], vol_exp)
-    time_x, MSD_yaw = regMSD(0.8, Nframes, EuAng[:,2], vol_exp)
+    time_x, MSD_cm = regMSD(Nframes, cm[:,0], vol_exp)
+    time_x, MSD_pitch = regMSD(Nframes, EuAng[:,0], vol_exp)
+    time_x, MSD_roll = regMSD(Nframes, EuAng[:,1], vol_exp)
+    time_x, MSD_yaw = regMSD(Nframes, EuAng[:,2], vol_exp)
 
     # Fit the MSDs curve
-    rData = 0.1;
-    nData = np.int32(rData*Nframes) # number of data fitted
-    def MSDfit(x, a):
-        return a * x   
+    rData = 0.01;
+    nData = np.int32(rData*Nframes) # number of data fitted 
     fitN = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_N[0:nData],p0=0.1)
     fitS = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_S[0:nData],p0=0.1)
     fitS2 = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_S2[0:nData],p0=0.1)
@@ -364,68 +379,70 @@ if allMSD:
     fitYaw = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_yaw[0:nData],p0=0.1)
     fitCombo = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_combo[0:nData],p0=0.1)
     
-    simORreal = True
-    if simORreal:
-        
-        # All the MSD of interest
-        fromMSD_in = msd.theMSD(0.8, Nframes, cmInput, \
-                                EuAngInput[:,1], localAxes, vol_exp)
-        time_x, MSD_N_in, MSD_S_in, MSD_S2_in, MSD_combo_in = fromMSD_in.trans_combo_MSD()
-        time_x, MSD_pitch_in = regMSD(0.8, Nframes, EuAngInput[:,0], vol_exp)
-        time_x, MSD_roll_in = regMSD(0.8, Nframes, EuAngInput[:,1], vol_exp)
-        time_x, MSD_yaw_in = regMSD(0.8, Nframes, EuAngInput[:,2], vol_exp)
-        
-        # Fit the MSDs curve
-        nData = np.int32(0.05*Nframes) # number of data fitted
-        def MSDfit(x, a):
-            return a * x   
-        fitN_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
-                                     MSD_N_in[0:nData],p0=0.1)
-        fitS_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
-                                     MSD_S_in[0:nData],p0=0.1)
-        fitS2_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
-                                      MSD_S2_in[0:nData],p0=0.1)
-        fitRoll_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
-                                        MSD_roll_in[0:nData],p0=0.1)
-        fitPitch_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
-                                         MSD_pitch_in[0:nData],p0=0.1)        
-        fitYaw_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
-                                       MSD_yaw_in[0:nData],p0=0.1)
-        fitCombo_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
-                                         MSD_combo_in[0:nData],p0=0.1)
+    
+    # All the MSD of interest
+    fromMSD_in = msd.theMSD(Nframes, cmInput,
+                            EuAngInput[:,1], vectNInput, vol_exp)
+    time_x, MSD_N_in, MSD_S_in, MSD_S2_in,\
+        MSD_combo_in = fromMSD_in.trans_combo_MSD()
+    time_x, MSD_cm_in = regMSD(Nframes, cmInput[:,0], vol_exp)
+    time_x, MSD_pitch_in = regMSD(Nframes, EuAngInput[:,0], vol_exp)
+    time_x, MSD_roll_in = regMSD(Nframes, EuAngInput[:,1], vol_exp)
+    time_x, MSD_yaw_in = regMSD(Nframes, EuAngInput[:,2], vol_exp)
+    
+    # Fit the MSDs curve
+    nData = np.int32(0.05*Nframes) # number of data fitted
+    def MSDfit(x, a):
+        return a * x   
+    fitN_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
+                                 MSD_N_in[0:nData],p0=0.1)
+    fitS_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
+                                 MSD_S_in[0:nData],p0=0.1)
+    fitS2_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
+                                  MSD_S2_in[0:nData],p0=0.1)
+    fitRoll_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
+                                    MSD_roll_in[0:nData],p0=0.1)
+    fitPitch_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
+                                     MSD_pitch_in[0:nData],p0=0.1)        
+    fitYaw_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
+                                   MSD_yaw_in[0:nData],p0=0.1)
+    fitCombo_in = optimize.curve_fit(MSDfit, time_x[0:nData],\
+                                     MSD_combo_in[0:nData],p0=0.1)
 
     # Print all diffusion constant
     print('Diffusion constants')
-    print('parallel, perpendicular, ratio:',
-          fitN[0]/(6*vol_exp), fitS[0]/(6*vol_exp), fitN[0]/fitS[0])
-    print('pitch, roll, yaw:', fitPitch[0]/(6*vol_exp),\
-                               fitRoll[0]/(6*vol_exp), fitYaw[0]/(6*vol_exp))
+    print('parallel, perpendicular, perpendicular-2, ratio:',
+          fitN[0]/6, fitS[0]/6, fitS2[0]/6, fitN[0]/fitS[0])
+    print('pitch, roll, yaw:', fitPitch[0]/6,\
+                               fitRoll[0]/6, fitYaw[0]/6)
 
-    # Plot all the MSDs  
+    # Plot all the MSDs      
     fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
-    ax0.plot(time_x,MSD_N_in,c='g',marker="^",mfc='none',ls='None',alpha=0.5)   
-    ax0.plot(time_x,MSD_S_in,c='g',marker="s",mfc='none',ls='None',alpha=0.5)
-    ax0.plot(time_x,MSD_N,c='k',marker="^",mfc='none',ms=9,ls='None',alpha=0.5)   
-    ax0.plot(time_x,MSD_S,c='k',marker="s",mfc='none',ms=9,ls='None',alpha=0.5)
-    # ax0.plot(time_x,MSD_cm,c='k',marker="s",mfc='none',ms=9,ls='None',alpha=0.5)    
+    ax0.plot(time_x,MSD_N_in,c='k',marker="^",mfc='none',ls='None',alpha=0.5)   
+    ax0.plot(time_x,MSD_S_in,c='k',marker="s",mfc='none',ls='None',alpha=0.5)
+    ax0.plot(time_x,MSD_S2_in,c='k',marker="o",mfc='none',ls='None',alpha=0.5)
+    ax0.plot(time_x,MSD_N,c='g',marker="^",mfc='none',ms=9,ls='None',alpha=0.5)   
+    ax0.plot(time_x,MSD_S,c='g',marker="s",mfc='none',ms=9,ls='None',alpha=0.5)
+    ax0.plot(time_x,MSD_S2,c='g',marker="o",mfc='none',ms=9,ls='None',alpha=0.5)
     ax0.plot(time_x,fitN[0]*time_x,c='k',alpha=0.2)
     ax0.plot(time_x,fitS[0]*time_x,c='k',alpha=0.2)
+    ax0.plot(time_x,fitS2[0]*time_x,c='k',alpha=0.2)
     # ax0.plot(time_x,time_x**2,c='b',alpha=0.2) 
     ax0.set_xscale('log'); ax0.set_yscale('log'); 
     ax0.set_title('MSD translation')
     ax0.set_xlabel(r'Log($\tau$) [sec]');
     ax0.set_ylabel(r'Log(MSD) [$\mu m^2$/sec]')
     # ax0.set_ylim([np.exp(-0.5*10e-1),np.exp(10^4)])
-    ax0.legend(["parallel","perpendicular", "perpendicular2"])
+    ax0.legend(["parallel","perpendicular", "perpendicular-2"])
     if msdToPDF: fig0.savefig(r'./PDF/MSD-trans.pdf')
 
     fig3,ax3 = plt.subplots(dpi=300, figsize=(6,5))
-    # ax3.plot(time_x,MSD_pitch_in,c='g',marker="^",mfc='none',ls='None',alpha=0.5)  
-    # ax3.plot(time_x,MSD_roll_in,c='g',marker="s",mfc='none',ls='None',alpha=0.5)  
-    # ax3.plot(time_x,MSD_yaw_in,c='g',marker="o",mfc='none',ls='None',alpha=0.5)
-    ax3.plot(time_x,MSD_pitch,c='k',marker="^",mfc='none',ls='None',alpha=0.5)  
-    ax3.plot(time_x,MSD_roll,c='k',marker="s",mfc='none',ls='None',alpha=0.5)  
-    ax3.plot(time_x,MSD_yaw,c='k',marker="o",mfc='none',ls='None',alpha=0.5)
+    ax3.plot(time_x,MSD_pitch_in,c='k',marker="^",mfc='none',ls='None',alpha=0.5)  
+    ax3.plot(time_x,MSD_roll_in,c='k',marker="s",mfc='none',ls='None',alpha=0.5)  
+    ax3.plot(time_x,MSD_yaw_in,c='k',marker="o",mfc='none',ls='None',alpha=0.5)
+    ax3.plot(time_x,MSD_pitch,c='g',marker="^",mfc='none',ls='None',alpha=0.5)  
+    ax3.plot(time_x,MSD_roll,c='g',marker="s",mfc='none',ls='None',alpha=0.5)  
+    ax3.plot(time_x,MSD_yaw,c='g',marker="o",mfc='none',ls='None',alpha=0.5)
     ax3.plot(time_x,fitPitch[0]*time_x,c='k',alpha=0.2)
     ax3.plot(time_x,fitRoll[0]*time_x,c='k',alpha=0.2)
     ax3.plot(time_x,fitYaw[0]*time_x,c='k',alpha=0.2)
@@ -438,15 +455,14 @@ if allMSD:
     
     fig4,ax4 = plt.subplots(dpi=300, figsize=(6,5))
     plotEnd = 20;
-    # ax4.plot(time_x[0:plotEnd],MSD_combo_in[0:plotEnd],c='k',alpha=0.5)
-    ax4.plot(time_x[0:plotEnd],MSD_combo[0:plotEnd],c='k',alpha=0.5)
+    ax4.plot(time_x[0:plotEnd],MSD_combo_in[0:plotEnd],c='k',alpha=0.5)
+    ax4.plot(time_x[0:plotEnd],MSD_combo[0:plotEnd],c='g',alpha=0.5)
     ax4.plot(time_x[0:plotEnd],fitCombo[0]*time_x[0:plotEnd],c='k',alpha=0.2)
     ax4.set_title('MSD combo')
     # ax4.axis('equal');
     ax4.set_xlabel(r'Log($\tau$) [sec]');
     ax4.set_ylabel(r'$\langle \Delta Y \Delta\psi\rangle [\mu m\cdot rad/sec]$') 
     if msdToPDF: fig4.savefig(r'./PDF/MSD-combo.pdf')
-    
     
 #%% Plot in 3D space
 plotin3D = True
@@ -501,12 +517,56 @@ if plotin3D:
     Un2, Vn2, Wn2 = zip(list(5*localAxes[iframe,1])) 
     Un3, Vn3, Wn3 = zip(list(5*localAxes[iframe,2]))
     # ax.quiver(X,Y,Z,Uaux,Vaux,Waux, color='b')
-    ax.quiver(X,Y,Z,U0,V0,W0,color='b')
+    # ax.quiver(X,Y,Z,U0,V0,W0,color='b')
     # ax.quiver(X,Y,Z,U1,V1,W1,color='g')
     # ax.quiver(X,Y,Z,U2,V2,W2,color='g',alpha=0.5)
     ax.quiver(X,Y,Z,Un1,Vn1,Wn1,color='r')
-    # ax.quiver(X,Y,Z,Un2,Vn2,Wn2,color='g')
-    # ax.quiver(X,Y,Z,Un3,Vn3,Wn3,color='g')
+    ax.quiver(X,Y,Z,Un2,Vn2,Wn2,color='g')
+    ax.quiver(X,Y,Z,Un3,Vn3,Wn3,color='g')
+
+#%% Reload movies to check
+checknpy = 0
+makeMov = 0
+if checknpy:
+
+    viewer = napari.Viewer(ndisplay=3)
+    viewer.add_image(intensity, contrast_limits=[0,200],\
+                     scale=[0.115,.115,.115],\
+                      multiscale=False,colormap='gray',opacity=1)  
+    # viewer.add_image(blobBin, contrast_limits=[0,1],\
+    #                   scale=[0.115,.115,.115],\
+    #                   multiscale=False,colormap='green',opacity=0.5) 
+    viewer.scale_bar.visible=True
+    viewer.scale_bar.unit='um'
+    viewer.scale_bar.position='top_right'
+    viewer.axes.visible = True
+    napari.run()
+
+if makeMov:
+    from naparimovie import Movie
+    # blobBin = da.from_array(blobBin)
+    # blobSkel = da.from_array(blobSkel)
+    
+    viewer = napari.Viewer(ndisplay=3)
+    viewer.add_image(intensity, contrast_limits=[100,300],\
+                     scale=[0.115,.115,.115],\
+                      multiscale=False,colormap='gray',opacity=1)  
+    viewer.add_image(blobBin, contrast_limits=[0,1],\
+                      scale=[0.115,.115,.115],\
+                      multiscale=False,colormap='green',opacity=0.5)
+    viewer.add_image(blobSkel, contrast_limits=[0,1],\
+                      scale=[0.115,.115,.115],\
+                      multiscale=False,colormap='green',opacity=0.5)
+    viewer.scale_bar.visible=True
+    viewer.scale_bar.unit='um'
+    viewer.scale_bar.position='top_right'
+    viewer.axes.visible = True
+    movie = Movie(myviewer=viewer)
+    
+    movie.create_state_dict_from_script('./moviecommands/moviecommands4.txt')
+    movie.make_movie("synthetic.mov",fps=10)
+    # movie.make_movie(fName+ "-skel.mov",fps=10)  
+
 
 #%% plot the fluctuations
 plotFluc = True; flucToPDF = False
@@ -528,7 +588,7 @@ if plotFluc:
     else:
         ax01.plot(np.linspace(0,Nframes-1,num=Nframes)*vol_exp,\
                   (np.degrees(EuAng[:,0])),c='k',lw=0.5)
-        ax01.set_ylim(-600,600)  
+        # ax01.set_ylim(-600,600)  
     ax01.set_xlabel(r'time [sec]');
     ax01.set_ylabel(r'pitch [deg]')    
     if flucToPDF: fig01.savefig(r'./PDF/EuAng-pitch.pdf')
@@ -547,7 +607,7 @@ if plotFluc:
     else:
         ax02.plot(np.linspace(0,Nframes-1,num=Nframes)*vol_exp,\
                   (np.degrees(EuAng[:,1])),c='k',lw=0.5)
-        ax02.set_ylim(-100,1100)  
+        # ax02.set_ylim(-100,1100)  
     ax02.set_xlabel(r'time [sec]');
     ax02.set_ylabel(r'roll [deg]')
     if flucToPDF: fig02.savefig(r'./PDF/EuAng-roll.pdf')
@@ -566,59 +626,10 @@ if plotFluc:
     else:
         ax03.plot(np.linspace(0,Nframes-1,num=Nframes)*vol_exp,\
                   (np.degrees(EuAng[:,2])),c='k',lw=0.5)
-        ax03.set_ylim(-600,600)  
+        # ax03.set_ylim(-600,600)  
     ax03.set_xlabel(r'time [sec]');
     ax03.set_ylabel(r'yaw [deg]')
     if flucToPDF: fig03.savefig(r'./PDF/EuAng-yaw.pdf')
-    
-    # direction angles
-    fig04,ax04 = plt.subplots(dpi=300, figsize=(6,2))
-    if simORreal:
-        ax04.plot(np.linspace(0,Nframes-1,num=Nframes)*0.05,\
-                  np.degrees(dirAngInput[:,0]),\
-                  c='k',marker="o",alpha=0.2)
-        ax04.plot(np.linspace(0,Nframes-1,num=Nframes)*0.05,\
-                  np.degrees(dirAng[:,0]),\
-                  c='g',marker="o",mfc='none',ms=9,alpha=0.4)    
-    else:
-        ax04.plot(np.linspace(0,Nframes-1,num=Nframes)*vol_exp,\
-                  np.degrees(dirAng[:,0]),c='k',lw=0.5)
-        ax04.set_ylim(-100,200)  
-    ax04.set_ylabel(r'angle to +y-axis [deg]')
-    ax04.set_xlabel(r'time [sec]');
-    if flucToPDF: fig04.savefig(r'./PDF/dirAng-y-axis.pdf')
-
-    fig05,ax05 = plt.subplots(dpi=300, figsize=(6,2))
-    if simORreal:
-        ax05.plot(np.linspace(0,Nframes-1,num=Nframes)*0.05,\
-                  np.degrees(dirAngInput[:,1]),\
-                  c='k',marker="o",alpha=0.2)
-        ax05.plot(np.linspace(0,Nframes-1,num=Nframes)*0.05,\
-                  np.degrees(dirAng[:,1]),\
-                  c='g',marker="o",mfc='none',ms=9,alpha=0.4)
-    else:
-        ax05.plot(np.linspace(0,Nframes-1,num=Nframes)*vol_exp,\
-                  np.degrees(dirAng[:,1]),c='k',lw=0.5)
-        ax05.set_ylim(-200,100)  
-    ax05.set_xlabel(r'time [sec]');
-    ax05.set_ylabel(r'angle to +x-axis [deg]')
-    if flucToPDF: fig05.savefig(r'./PDF/dirAng-x-axis.pdf')
-    
-    fig06,ax06 = plt.subplots(dpi=300, figsize=(6,2))
-    if simORreal:
-        ax06.plot(np.linspace(0,Nframes-1,num=Nframes)*0.05,\
-                  np.degrees(dirAngInput[:,2]),\
-                  c='k',marker="o",alpha=0.2)
-        ax06.plot(np.linspace(0,Nframes-1,num=Nframes)*0.05,\
-                  np.degrees(dirAng[:,2]),\
-                  c='g',marker="o",mfc='none',ms=9,alpha=0.4)
-    else:
-        ax06.plot(np.linspace(0,Nframes-1,num=Nframes)*vol_exp,\
-                  np.degrees(dirAng[:,2]),c='k',lw=0.5)
-        ax06.set_ylim(-200,100)  
-    ax06.set_xlabel(r'time [sec]');
-    ax06.set_ylabel(r'angle to +z-axis [deg]')
-    if flucToPDF: fig06.savefig(r'./PDF/dirAng-z-axis.pdf')
 
 
 #%% Plot projections (XY, XZ, YZ)
@@ -679,7 +690,7 @@ if plotin2D:
     
 
 #%% Plot vectors in 3D to check
-vecin3D = True
+vecin3D = False
 if vecin3D:
     import matplotlib.animation as animation
     
@@ -843,7 +854,7 @@ if movin3D:
     anim0.save('./simIO/sim-RawData.mp4', writer=writer2)
 
 #%% Computing matrix A, B, D
-computeD = True
+computeD = False
 if computeD:
     # Measure the radius and pitch length
     radfla = np.zeros(Nframes)
@@ -852,33 +863,20 @@ if computeD:
         radfla[i] =  (max(xp0[i][:,2])-min(xp0[i][:,2]) ) *pxum
         pitfla[i] = lenfla[i]/2.5
     
-    print('SUMMARY for ' + fName + ' with total',Nframes,'frames')
+    print('SUMMARY for simulation with total',Nframes,'frames')
     print("flagella radius [um] = ", np.mean(radfla),\
           " with std = ", np.std(radfla))
     print("flagella length [um] = ", np.mean(lenfla),\
           " with std = ", np.std(lenfla))
     print("flagella pitch-length [um] = ", np.mean(pitfla),\
           " with std = ", np.std(pitfla))
-    print("Fit for parallel, perpen-1, perpen-2:",fitN[0], fitS1[0], fitS2[0])
+    print("Fit for parallel, perpen-1, perpen-2:",fitN[0], fitS[0], fitS2[0])
     print("Fit for pitch, roll, yaw:",fitPitch[0], fitRoll[0], fitYaw[0])
     print("Fit for combo:",fitCombo[0])
-    print("Matrix A, B, D for " + fName)
+    print("Matrix A, B, D")
     A, B, D = BernieMatrix(fitN[0]*1e-12,fitRoll[0],fitCombo[0]*1e-6)
     A2, B2, D2 = BernieMatrix(fitN[0]*1e-12*(11.49),fitRoll[0]*(11.49),\
                               fitCombo[0]*1e-6*(11.49)) # 50% sucrose
     print("Propulsion-Matrix (A, B, D):", A, B, D)
     print("50% sucrose adjusted (A, B, D):", A2, B2, D2)
-    
-    # print to excel
-    data = [['number of frames', Nframes],\
-            ['radius [um]', np.mean(radfla),np.std(radfla)],\
-            ['length [um]', np.mean(lenfla),np.std(lenfla)],\
-            ['pitch [um]', np.mean(pitfla),np.std(pitfla)],\
-            ['trans-fit [um^2/sec^2]',fitN[0][0], fitS1[0][0], fitS2[0][0]],\
-            ['rotation-fit [rad^2/sec^2]',fitPitch[0][0], fitRoll[0][0], fitYaw[0][0]],\
-            ['combo-fit [um.rad/sec^2]',fitCombo[0][0]],\
-            ['A, B, D', A[0], B[0], D[0]],\
-            ['A, B, D (adjusted 50% sucrose)', A2[0], B2[0], D2[0]]\
-                ]
-    df = pd.DataFrame(data)
-    df.to_excel(fName + '.xlsx', index = False, header = False)  
+   

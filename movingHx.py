@@ -17,16 +17,12 @@ class createMovHx:
         self.spin = spin
         self.drift = UmToPx(drift)
         
-        self.Dpar  = Dpar/0.115
-        self.Dperp = Dperp/0.115
+        self.Dpar  = Dpar/(0.115**2)
+        self.Dperp = Dperp/(0.115**2)
         
-        self.Dpitch = np.radians(Dpitch)
-        self.Droll = np.radians(Droll)
-        self.Dyaw = np.radians(Dyaw)
-
-        # self.Dpitch = Dpitch * (np.pi/180)**2
-        # self.Droll = Droll * (np.pi/180)**2
-        # self.Dyaw = Dyaw * (np.pi/180)**2
+        self.Dpitch = Dpitch
+        self.Droll = Droll
+        self.Dyaw = Dyaw
 
         self.chirality = chirality
         self.resol = resol
@@ -42,61 +38,30 @@ class createMovHx:
         self.vol_exp = vol_exp
         
     def movHx(self):
-        # if self.transRange == 0:
-        #     boxSize = self.length + 30
-        # else:
-        #     boxSize = self.length + np.round(0.5*self.transRange*\
-        #                                      self.Nframes).astype('int')
-        boxSize = self.length.astype('int') + 250
-        img = np.zeros((self.Nframes,boxSize,\
-                        boxSize,boxSize),dtype='uint8')
-        
-        box = img.shape[1:]
-        origin = np.array(box)/2
-        np.random.seed(13317043) # ensure repeatable random
-        
-        # Center of mass fluctuation
-        # sig_par   = np.sqrt(2 * 3 * self.Dpar * self.vol_exp);
-        # sig_perp1 = np.sqrt(2 * 3 * self.Dperp1 * self.vol_exp);
-        # sig_perp2 = np.sqrt(2 * 3 * self.Dperp2 * self.vol_exp);
-        sig_par = np.sqrt(self.Dpar)
-        sig_perp = np.sqrt(self.Dperp)
-        lengthwise = np.zeros(self.Nframes); 
-        sidewise1 = np.zeros(self.Nframes); sidewise2 = np.zeros(self.Nframes);
-        for i in range(1,self.Nframes):
-            lengthwise[i] = lengthwise[i-1] + np.random.normal(0, sig_par)
-            sidewise1[i] = sidewise1[i-1] + np.random.normal(0, sig_perp)
-            sidewise2[i] = sidewise2[i-1] + np.random.normal(0, sig_perp)
-        
+               
         # Pitch, roll, and yaw (relative to the local axes)
-        # sig_pitch = np.sqrt(2 * 3 * self.Dpitch * self.vol_exp);
-        # sig_roll = np.sqrt(2 * 3 * self.Droll * self.vol_exp);
-        # sig_yaw = np.sqrt(2 * 3 * self.Dyaw * self.vol_exp);
-        sig_pitch = self.Dpitch;
-        sig_roll = self.Droll;
-        sig_yaw = self.Dyaw;
         EuAng = np.zeros([self.Nframes,3]);
-        for i in range(1,self.Nframes):
-            EuAng[i-1,0] = EuAng[i-1,0] + np.random.normal(0, sig_pitch)     
-            EuAng[i-1,1] = EuAng[i-1,1] + np.random.normal(0, sig_roll)
-            EuAng[i-1,2] = EuAng[i-1,2] + np.random.normal(0, sig_yaw)
-            
-        # Direction angle (relative to the lab axes)
-        dirAng = np.zeros([self.Nframes,3])
-        ang1 = np.radians(31.); ang2 = np.radians(65.)
-        ang3 = np.arccos(np.sqrt(1-np.cos(ang1)**2-np.cos(ang2)**2))
-        dirAng[0] = np.array([ang1,ang2,ang3])
-        
+        for i in range(self.Nframes):
+            EuAng[i,0] = EuAng[i-1,0] +\
+                np.random.normal(0, np.sqrt(6*self.vol_exp*self.Dpitch)) 
+            EuAng[i,1] = EuAng[i-1,1] +\
+                np.random.normal(0, np.sqrt(6*self.vol_exp*self.Droll))
+            EuAng[i,2] = EuAng[i-1,2] +\
+                np.random.normal(0, np.sqrt(6*self.vol_exp*self.Dyaw))
+
         # The three unit vectors
         n1 = np.zeros([self.Nframes,3]); n2 = np.zeros([self.Nframes,3]);
         n3 = np.zeros([self.Nframes,3]); vectN = np.zeros([self.Nframes,3,3])
+
+        # Initial orientation (n1 - relative to the positive lab axes)
+        ang1 = np.radians(31.); ang2 = np.radians(65.)
+        ang3 = np.arccos(np.sqrt(1-np.cos(ang1)**2-np.cos(ang2)**2))
         
-        CMS = []; frame = []; 
+        cm = np.zeros([self.Nframes,3])
         for i in range(self.Nframes):
             
             points = self.createHx(0)  # generate the helix coordinates
             
-            # set up the normal vectors
             if i == 0:
                 n1[i] = np.array([ np.cos(ang1),np.cos(ang2),np.cos(ang3) ])
                 n2[i] = points[0,:]
@@ -105,61 +70,67 @@ class createMovHx:
                 n3[i] = np.cross(n1[i],n2[i])
                 n3[i] /= np.linalg.norm(n3[i])
                 
+                n1[i] /= np.linalg.norm(n1[i])
+                cm[i] = 0
             else:
                 n1[i] = n1[i-1] + ( (EuAng[i,0]-EuAng[i-1,0]) * n2[i-1] -\
                                     (EuAng[i,2]-EuAng[i-1,2]) * n3[i-1])
-                
                 n2[i] = n2[i-1] + (-(EuAng[i,0]-EuAng[i-1,0]) * n1[i-1] +\
                                     (EuAng[i,1]-EuAng[i-1,1]) * n3[i-1])
-                # n3[i] = np.cross(n1[i],n2[i])
-                n3[i] = n3[i-1] + ( (EuAng[i,2]-EuAng[i-1,2]) * n1[i-1] -\
-                                    (EuAng[i,1]-EuAng[i-1,1]) * n2[i-1])
-                     
-            # set the center of mass
-            CM = origin + n1[i] * lengthwise[i] +\
-                          n2[i] * sidewise1[i] +\
-                          n3[i] * sidewise2[i]   
-            CMS.append(CM)
-
-            # prepare 3D images   
-            n1[i] /= np.linalg.norm(n1[i])
-            n2[i] /= np.linalg.norm(n2[i])
-            n3[i] /= np.linalg.norm(n3[i])
-            axes = np.array([ n2[i], n3[i], n1[i] ])
-            frame = CM + np.matmul(axes.T,points.T).T
-            frame = self.digitize(frame,0)
-            for f in frame:
-                x, y, z = f
-                if self.hxVar == 0:
-                    img[i,x,y,z] = self.hxInt
-                else:
-                    img[i,x,y,z] = np.random.uniform(self.hxInt-self.hxVar,\
-                                                     self.hxInt+self.hxVar)
-        
-            # infer the direction angles from n1[i]
-            for j in range(3):
-                dirAng[i,j] = np.arccos(n1[i,j])
+                n3[i] = np.cross(n1[i],n2[i])
+                # n3[i] = n3[i-1] + ( (EuAng[i,2]-EuAng[i-1,2]) * n1[i-1] -\
+                #                     (EuAng[i,1]-EuAng[i-1,1]) * n2[i-1])
+                               
+                # normalize the vectors
+                n1[i] /= np.linalg.norm(n1[i])
+                n2[i] /= np.linalg.norm(n2[i])
+                n3[i] /= np.linalg.norm(n3[i])
+                
+                par_step   = n1[i] *\
+                    np.random.normal(0, np.sqrt(6*self.vol_exp*self.Dpar))
+                perp1_step = n2[i] *\
+                    np.random.normal(0, np.sqrt(6*self.vol_exp*self.Dperp))
+                perp2_step = n3[i] *\
+                    np.random.normal(0, np.sqrt(6*self.vol_exp*self.Dperp))
+                
+                cm[i,:] = cm[i-1,:] + par_step + perp1_step + perp2_step
             
-        # convert CMS to numpy array
-        CMS = np.array(CMS)
+            vectN[i] = np.array([ n1[i], n2[i], n3[i] ])
+        
+        return cm, EuAng, vectN
     
-        # dilate and plot frames
-        for i in range(self.Nframes):
-            img[i] = dilation(img[i])
-            img[i] = dilation(img[i])
-            # img[i] = dilation(img[i])
+    def makeMov(self, CM, vectN):
+        
+        boxSize = self.length.astype('int') + 200
+        img = np.zeros((boxSize,boxSize,boxSize),dtype='uint8')
+        
+        box = img.shape
+        origin = np.array(box)/2
+        
+        points = self.createHx(0)     
+        n1 = vectN[0]; n2 = vectN[1]; n3 = vectN[2]; 
+
+        axes = np.array([ n2, n3, n1 ])
+        frame = CM + origin + np.matmul(axes.T,points.T).T
+        frame = self.digitize(frame,0)
+        for f in frame:
+            x, y, z = f
+            if self.hxVar == 0:
+                img[x,y,z] = self.hxInt
+            else:
+                img[x,y,z] = np.random.uniform(self.hxInt-self.hxVar,\
+                                               self.hxInt+self.hxVar)
+
+        img = dilation(img)
+        img = dilation(img)
         
         # add salt-and-pepper noise 
         img = self.addNoise(img)
         
-        # export all vector N
-        for i in range(self.Nframes):
-            vectN[i] = np.array([ n1[i], n2[i], n3[i] ])
-        
-        return img, CMS, EuAng, dirAng, vectN
+        return img
     
     def addNoise(self,img):
-        totalNum = img.shape[0]*img.shape[1]*img.shape[2]*img.shape[3]
+        totalNum = img.shape[0]*img.shape[1]*img.shape[2]
         saltpepper = np.reshape(np.random.normal(self.noiseInt,\
                                                  self.noiseVar,\
                                                      totalNum),img.shape)

@@ -13,19 +13,20 @@ plt.rcParams.update({
     "font.family": "sans-serif",
     "font.sans-serif": ["Helvetica"]})
 
-path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
-runNum = 'run-02'
+# path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
+path = r"D:\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
+runNum = 'run-03'
 
-xls70_h15 = glob.glob(path + '/20211022c_suc70_h15um/' + runNum + '/*.xlsx')
-xls70_h30 = glob.glob(path + '/20211022d_suc70_h30um/' + runNum + '/*.xlsx')
+xls70_h15 = glob.glob(path + '/20211022c_suc70_h15um/' + runNum + '/SS/*-StSz.xlsx')
+xls70_h30 = glob.glob(path + '/20211022d_suc70_h30um/' + runNum + '/SS/*-StSz.xlsx')
 
-xls50_h15 = glob.glob(path + '/20211018a_suc50_h15um/' + runNum + '/*.xlsx')
-xls50_h30 = glob.glob(path + '/20211018b_suc50_h30um/' + runNum + '/*.xlsx')
+xls50_h15 = glob.glob(path + '/20211018a_suc50_h15um/' + runNum + '/SS/*-StSz.xlsx')
+xls50_h30 = glob.glob(path + '/20211018b_suc50_h30um/' + runNum + '/SS/*-StSz.xlsx')
 
-xls40_h15 = glob.glob(path + '/20211022a_suc40_h15um/' + runNum + '/*.xlsx')
-xls40_h30 = glob.glob(path + '/20211022b_suc40_h30um/' + runNum + '/*.xlsx')
+xls40_h15 = glob.glob(path + '/20211022a_suc40_h15um/' + runNum + '/SS/*-StSz.xlsx')
+xls40_h30 = glob.glob(path + '/20211022b_suc40_h30um/' + runNum + '/SS/*-StSz.xlsx')
 
-#%% Go through Excel sheets
+# Go through Excel sheets
 # 40% sucrose, h = (15, 30) um from wall
 data40_h15 = np.ndarray([len(xls40_h15),8,4],dtype=object)
 for j in range(len(xls40_h15)):
@@ -95,223 +96,122 @@ Dc70_h30 = data70_h30[:,5,1];           # combo diffusion
 ABD70_h30 = data70_h30[:,6,1:4];        # propulsion matrix A, B, Ds
 ABD70adj_h30 = data70_h30[:,7,1:4];     # propulsion matrix A, B, Ds
 
-#%% save to TXT
-header = np.array([['length [um]', 'length-std [um]', 'parallel [um^2/sec]',\
-                   'perpendicular [um^2/sec]','perpendicular 2 [um^2/sec]']])
-
-data40_h15 = np.vstack((geo40_h15_mean[:,1], geo40_h15_std[:,1],Dt40_h15.T)).T
-data40_h30 = np.vstack((geo40_h30_mean[:,1], geo40_h30_std[:,1],Dt40_h30.T)).T
-data50_h15 = np.vstack((geo50_h15_mean[:,1], geo50_h15_std[:,1],Dt50_h15.T)).T
-data50_h30 = np.vstack((geo50_h30_mean[:,1], geo50_h30_std[:,1],Dt50_h30.T)).T
-data70_h15 = np.vstack((geo70_h15_mean[:,1], geo70_h15_std[:,1],Dt70_h15.T)).T
-data70_h30 = np.vstack((geo70_h30_mean[:,1], geo70_h30_std[:,1],Dt70_h30.T)).T
-
-# np.savetxt("Dt40_h15.csv", np.concatenate((header,data40_h15)), delimiter=",", fmt='%s')
-# np.savetxt("Dt40_h30.csv", np.concatenate((header,data40_h30)), delimiter=",", fmt='%s')
-# np.savetxt("Dt50_h15.csv", np.concatenate((header,data50_h15)), delimiter=",", fmt='%s')
-# np.savetxt("Dt50_h30.csv", np.concatenate((header,data50_h30)), delimiter=",", fmt='%s')
-# np.savetxt("Dt70_h15.csv", np.concatenate((header,data70_h15)), delimiter=",", fmt='%s')
-# np.savetxt("Dt70_h30.csv", np.concatenate((header,data70_h30)), delimiter=",", fmt='%s')
-
-#%% Translation diffusion - individual
-suc_per = str(70)
-geo_h15_mean = geo70_h15_mean
-geo_h30_mean = geo70_h30_mean
-geo_h15_std = geo70_h15_std
-geo_h30_std = geo70_h30_std
-Dt_h15 = Dt70_h15
-Dt_h30 = Dt70_h30
+#%% Translation (SCATTER)
 plt.rcParams.update({'font.size': 10})
-
-# diffusion_parallel = f(length)
-fig01,ax01 = plt.subplots(dpi=300, figsize=(6,2))
-ax01.errorbar(geo_h15_mean[:,1],Dt_h15[:,0],\
-              xerr=geo_h15_std[:,1],
-              marker="o",linestyle = 'None',alpha=0.5,capsize=2)
-ax01.errorbar(geo_h30_mean[:,1],Dt_h30[:,0],\
-              xerr=geo_h30_std[:,1],\
-              marker="o",linestyle = 'None',alpha=0.5,capsize=2)
+fig01,ax01 = plt.subplots(dpi=300, figsize=(5,2), tight_layout=True)
+ax01.errorbar(np.concatenate([geo40_h15_mean[:,1],geo40_h30_mean[:,1]]),
+              np.concatenate([Dt40_h15[:,0],Dt40_h30[:,0]]),
+              xerr=np.concatenate([geo40_h15_std[:,1],geo40_h30_std[:,1]]),
+              color='k',marker="s", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax01.errorbar(np.concatenate([geo40_h15_mean[:,1],geo40_h30_mean[:,1]]),
+              np.concatenate([np.mean([Dt40_h15[:,1],Dt40_h15[:,2]],axis=0),
+                              np.mean([Dt40_h30[:,1],Dt40_h30[:,2]],axis=0)]),
+              xerr=np.concatenate([geo40_h15_std[:,1],geo40_h30_std[:,1]]),
+              color='k', marker="x", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
 ax01.set_xlabel(r'length [$\mu m$]');
-ax01.set_title('Translation diffusion parallel (' + suc_per + '\% sucrose)')
-ax01.set_ylabel(r'$D_\parallel$ [$\mu m^2$/sec]')
-ax01.legend(["$h = 15\pm3~\mu m$", "$h = 30\pm3~\mu m$"])
-ax01.set_xlim([4, 10]);
+ax01.set_title('Translation diffusion (' + '40' + '\% sucrose)')
+ax01.set_ylabel(r'$D$ [$\mu m^2$/sec]')
+ax01.legend(["$D_\parallel$", "$D_\perp$"])
+ax01.set_xlim([4,9])
+# ax01.figure.savefig(path + '/PDF/trans-40-scatter.pdf')
 
-# diffusion_perpendicular1 = f(length)
-fig02,ax02 = plt.subplots(dpi=300, figsize=(6,2))
-ax02.errorbar(geo_h15_mean[:,1],Dt_h15[:,1],\
-              xerr=geo_h15_std[:,1],\
-              marker="o",linestyle = 'None',alpha=0.5,capsize=2)
-ax02.errorbar(geo_h30_mean[:,1],Dt_h30[:,1],\
-              xerr=geo_h30_std[:,1],\
-              marker="o",linestyle = 'None',alpha=0.5,capsize=2)
+fig02,ax02 = plt.subplots(dpi=300, figsize=(5,2), tight_layout=True)
+ax02.errorbar(np.concatenate([geo50_h15_mean[:,1],geo50_h30_mean[:,1]]),
+              np.concatenate([Dt50_h15[:,0],Dt50_h30[:,0]]),
+              xerr=np.concatenate([geo50_h15_std[:,1],geo50_h30_std[:,1]]),
+              color='k',marker="s", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax02.errorbar(np.concatenate([geo50_h15_mean[:,1],geo50_h30_mean[:,1]]),
+              np.concatenate([np.mean([Dt50_h15[:,1],Dt50_h15[:,2]],axis=0),
+                              np.mean([Dt50_h30[:,1],Dt50_h30[:,2]],axis=0)]),
+              xerr=np.concatenate([geo50_h15_std[:,1],geo50_h30_std[:,1]]),
+              color='k', marker="x", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
 ax02.set_xlabel(r'length [$\mu m$]');
-ax02.set_title('Translation diffusion perpendicular 1 (' + suc_per + '\% sucrose)')
-ax02.set_ylabel(r'$D_\perp$ [$\mu m^2$/sec]')
-ax02.legend(["$h = 15\pm3~\mu m$", "$h = 30\pm3~\mu m$"])
-ax02.set_xlim([4, 10]);
+ax02.set_title('Translation diffusion (' + '50' + '\% sucrose)')
+ax02.set_ylabel(r'$D$ [$\mu m^2$/sec]')
+ax02.legend(["$D_\parallel$", "$D_\perp$"])
+ax02.set_xlim([4,9])
+# ax02.figure.savefig(path + '/PDF/trans-50-scatter.pdf')
 
-#%% plot ratio of translation diffusion
-  
-# computing ratio between parallel and perpendicular   
-ratio1_h15 = Dt_h15[:,0]/Dt_h15[:,1]
-ratio1_h30 = Dt_h30[:,0]/Dt_h30[:,1]
-r_xaxis = 3
+fig03,ax03 = plt.subplots(dpi=300, figsize=(5,2),tight_layout=True)
+ax03.errorbar(np.concatenate([geo70_h15_mean[:,1],geo70_h30_mean[:,1]]),
+              np.concatenate([Dt70_h15[:,0],Dt70_h30[:,0]]),
+              xerr=np.concatenate([geo70_h15_std[:,1],geo70_h30_std[:,1]]),
+              color='k',marker="s", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax03.errorbar(np.concatenate([geo70_h15_mean[:,1],geo70_h30_mean[:,1]]),
+              np.concatenate([np.mean([Dt70_h15[:,1],Dt70_h15[:,2]],axis=0),
+                              np.mean([Dt70_h30[:,1],Dt70_h30[:,2]],axis=0)]),
+              xerr=np.concatenate([geo70_h15_std[:,1],geo70_h30_std[:,1]]),
+              color='k', marker="x", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax03.set_xlabel(r'length [$\mu m$]');
+ax03.set_title('Translation diffusion (' + '70' + '\% sucrose)')
+ax03.set_ylabel(r'$D$ [$\mu m^2$/sec]')
+ax03.legend(["$D_\parallel$", "$D_\perp$"])
+ax03.set_xlim([4,9])
+# ax03.figure.savefig(path + '/PDF/trans-70-scatter.pdf')
 
-# fit CDF to the raw data
-def trunc_gauss_cdf(x, mu, sigma):
-    Fx = 1/2.0 * (1. + erf( (x-mu)/ (sigma*np.sqrt(2.))))
-    Fa = 1/2.0 * (1. + erf( (0-mu)/ (sigma*np.sqrt(2.))))
-    Fb = 1/2.0 * (1. + erf( (r_xaxis-mu)/ (sigma*np.sqrt(2.))))
-    Z = Fb - Fa
-    return (Fx - Fa) / Z
+#%% Compute ratio
+Dt40 = np.concatenate([Dt40_h15,Dt40_h30])
+Dt50 = np.concatenate([Dt50_h15,Dt50_h30])
+Dt70 = np.concatenate([Dt70_h15,Dt70_h30])
 
-def fitCDF(x):
-    model = Model(trunc_gauss_cdf, prefix='g1_')
-    params = model.make_params(g1_mu = 1.5, g1_sigma = 0.5)
-    yaxis = np.linspace(0,1,len(x), endpoint=False)
-    xaxis = np.sort(x)
-    xplot = np.linspace(0,r_xaxis,1000, endpoint=False)
-    result = model.fit(yaxis,params,x=xaxis)
-    yplot = trunc_gauss_cdf(xplot, result.params['g1_mu'].value,\
-                          result.params['g1_sigma'].value)
-    mean = result.params['g1_mu'].value
-    sigma = result.params['g1_sigma'].value
-    return xplot, yplot, mean, sigma
+ratio40 = Dt40[:,0] / np.mean([Dt40[:,1],Dt40[:,2]],axis=0)
+ratio50 = Dt50[:,0] / np.mean([Dt50[:,1],Dt50[:,2]],axis=0)
+ratio70 = Dt70[:,0] / np.mean([Dt70[:,1],Dt70[:,2]],axis=0)
 
-xplot1_h15, yplot1_h15, mean_h15, sigma_h15 = fitCDF(ratio1_h15)
-xplot1_h30, yplot1_h30, mean_h30, sigma_h30 = fitCDF(ratio1_h30)
-
-# plot them
-plt.rcParams.update({'font.size': 15})
-fig1,ax1 = plt.subplots(dpi=300, figsize=(6,5))
-weights_h15 = np.ones_like(ratio1_h15)/len(ratio1_h15)
-weights_h30 = np.ones_like(ratio1_h30)/len(ratio1_h15)
-ax1.plot(xplot1_h15, yplot1_h15,'C0', alpha=0.5)
-ax1.plot(xplot1_h30, yplot1_h30,'C1', alpha=0.5)
-# ax1.hist(ratio1_h15, 5, weights=weights_h15, facecolor='C0', alpha=0.5)
-# ax1.hist(ratio1_h30, 5, weights=weights_h30, facecolor='C1', alpha=0.5)
-ax1.plot(np.sort(ratio1_h15),np.linspace(0,1,len(ratio1_h15),endpoint=False),\
-         'C0o',MarkerSize=5, alpha=0.5)
-ax1.plot(np.sort(ratio1_h30),np.linspace(0,1,len(ratio1_h30),endpoint=False),\
-         'C1o',MarkerSize=5, alpha=0.5)
-ax1.set_title(r'$D_\parallel / D_{\perp}\ -\ $'  + str(suc_per) + '\% sucrose' )
-ax1.set_xlabel(r'$D_\parallel / D_{\perp}$');
-ax1.set_ylabel(r'Cumulative Probability')
-ax1.set_ylim([-0.05, 1.1]); ax1.set_xlim([0, r_xaxis]);
-ax1.legend(["$h = 15\pm3~\mu m~(n =\ $"+ str(len(Dt_h15)) + r'$)$',\
-            "$h = 30\pm3~\mu m~(n =\ $"+ str(len(Dt_h30)) + r'$)$'  ])
-ax1.figure.savefig(r'./PDF/suc'+ suc_per + '-ratio.pdf')
-    
-#%% diffusion parallel VS perpendiculars
-xaxis = ['Parallel', 'Perpendicular']
+#%% Translation (BAR)
+xaxis = ['Lengthwise', 'Sidewise']
 xpos = np.arange(len(xaxis))
-Dt_h15_mean = [np.mean(Dt_h15[:,0]), np.mean(Dt_h15[:,1])]
-Dt_h15_std = [np.std(Dt_h15[:,0]), np.std(Dt_h15[:,1])]
-Dt_h30_mean = [np.mean(Dt_h30[:,0]), np.mean(Dt_h30[:,1])]
-Dt_h30_std = [np.std(Dt_h30[:,0]), np.std(Dt_h30[:,1])]
+D40_mean = [np.mean(Dt40[:,0]),
+                np.mean( np.mean([Dt40[:,1],Dt40[:,2]],axis=0) )]
+D40_std = [np.std(Dt40_h15[:,0]),
+                np.std( np.mean([Dt40[:,1],Dt40[:,2]],axis=0) )]
+D50_mean = [np.mean(Dt50[:,0]),
+                np.mean( np.mean([Dt50[:,1],Dt50[:,2]],axis=0) )]
+D50_std = [np.std(Dt50_h15[:,0]),
+                np.std( np.mean([Dt50[:,1],Dt50[:,2]],axis=0) )]
+D70_mean = [np.mean(Dt70[:,0]),
+                np.mean( np.mean([Dt70[:,1],Dt70[:,2]],axis=0) )]
+D70_std = [np.std(Dt70_h15[:,0]),
+                np.std( np.mean([Dt70[:,1],Dt70[:,2]],axis=0) )]
 
-width = 0.35
+width = 0.3
 plt.rcParams.update({'font.size': 22})
 fig04a, ax04a = plt.subplots(dpi=300, figsize=(10,6.2))
-rects2 = ax04a.bar(xpos + width/2, Dt_h15_mean, width,\
-                  label=r'$h = 15\pm3~\mu m~(n =\ $'+ str(len(Dt70_h15)) + r'$)$',
-                  yerr=Dt_h15_std/np.sqrt(len(Dt_h15)),\
-                  align='center', alpha = 0.5, ecolor='black', capsize=10)
-rects1 = ax04a.bar(xpos - width/2, Dt_h30_mean, width,\
-                  label=r'$h = 30\pm3~\mu m~(n =\ $'+ str(len(Dt70_h30)) + r'$)$',
-                  yerr=Dt_h30_std/np.sqrt(len(Dt_h30)),\
-                  align='center', alpha = 0.5, ecolor='black', capsize=10)
-ax04a.set_ylabel(r'$D_Y$ [$\mu m^2$/sec]')
-ax04a.set_title('Translation diffusion (' + suc_per + '\% sucrose)')
-ax04a.set_xticks(xpos)
-ax04a.set_xticklabels(xaxis)
-ax04a.legend()
-ax04a.set_ylim([0, 0.7]);
-fig04a.tight_layout()
-ax04a.figure.savefig(r'./PDF/suc'+ suc_per + '-abs.pdf')
-
-#%% diffusion parallel VS perpendiculars
-# 70% sucrose
-xaxis = ['Parallel', 'Perpendicular 1', 'Perpendicular 2']
-xpos = np.arange(len(xaxis))
-D70_h15_mean = [np.mean(Dt70_h15[:,0]), np.mean(Dt70_h15[:,1]), np.mean(Dt70_h15[:,2])]
-D70_h15_std = [np.std(Dt70_h15[:,0]), np.std(Dt70_h15[:,1]), np.std(Dt70_h15[:,2])]
-D70_h30_mean = [np.mean(Dt70_h30[:,0]), np.mean(Dt70_h30[:,1]), np.mean(Dt70_h30[:,2])]
-D70_h30_std = [np.std(Dt70_h30[:,0]), np.std(Dt70_h30[:,1]), np.std(Dt70_h30[:,2])]
-
-width = 0.35
-plt.rcParams.update({'font.size': 22})
-fig04a, ax04a = plt.subplots(dpi=300, figsize=(10,6.2))
-rects2 = ax04a.bar(xpos + width/2, D70_h15_mean, width,\
-                  label=r'$h = 15\pm3~\mu m~(n =\ $'+ str(len(Dt70_h15)) + r'$)$',
-                  yerr=D70_h15_std/np.sqrt(len(Dt70_h15)),\
-                  align='center', alpha = 0.5, ecolor='black', capsize=10)
-rects1 = ax04a.bar(xpos - width/2, D70_h30_mean, width,\
-                  label=r'$h = 30\pm3~\mu m~(n =\ $'+ str(len(Dt70_h30)) + r'$)$',
-                  yerr=D70_h30_std/np.sqrt(len(Dt70_h30)),\
-                  align='center', alpha = 0.5, ecolor='black', capsize=10)
+rects1 = ax04a.bar(xpos - width, D40_mean, width,\
+                  label= r'$40\%~(n =\ $'+ str(len(Dt40)) + r'$)$',
+                  yerr=D40_std/np.sqrt(len(Dt40)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='o', edgecolor= 'black', capsize=10)
+rects2 = ax04a.bar(xpos, D50_mean, width,\
+                  label= r'$50\%~(n =\ $'+ str(len(Dt50)) + r'$)$',
+                  yerr=D50_std/np.sqrt(len(Dt50)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='x', edgecolor= 'black', capsize=10)
+rects3 = ax04a.bar(xpos + width, D70_mean, width,\
+                  label= r'$70\%~(n =\ $'+ str(len(Dt70)) + r'$)$',
+                  yerr=D70_std/np.sqrt(len(Dt70)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='+', edgecolor= 'black',  capsize=10)
 ax04a.set_ylabel(r'$D$ [$\mu m^2$/sec]')
-ax04a.set_title('Translation diffusion (' + str(70) + '\% sucrose)')
+# ax04a.set_title('Translation diffusion')
 ax04a.set_xticks(xpos)
 ax04a.set_xticklabels(xaxis)
 ax04a.legend()
-ax04a.set_ylim([0, 3.5]);
+ax04a.set_ylim([0, 0.6]);
 fig04a.tight_layout()
-
-# 50% sucrose
-xaxis = ['Parallel', 'Perpendicular 1', 'Perpendicular 2']
-xpos = np.arange(len(xaxis))
-D50_h15_mean = [np.mean(Dt50_h15[:,0]), np.mean(Dt50_h15[:,1]), np.mean(Dt50_h15[:,2])]
-D50_h15_std = [np.std(Dt50_h15[:,0]), np.std(Dt50_h15[:,1]), np.std(Dt50_h15[:,2])]
-D50_h30_mean = [np.mean(Dt50_h30[:,0]), np.mean(Dt50_h30[:,1]), np.mean(Dt50_h30[:,2])]
-D50_h30_std = [np.std(Dt50_h30[:,0]), np.std(Dt50_h30[:,1]), np.std(Dt50_h30[:,2])]
-
-width = 0.35
-plt.rcParams.update({'font.size': 22})
-fig04b, ax04b = plt.subplots(dpi=300, figsize=(10,6.2))
-rects2 = ax04b.bar(xpos + width/2, D50_h15_mean, width,\
-                  label=r'$h = 15\pm3~\mu m~(n =\ $'+ str(len(Dt50_h15)) + r'$)$',
-                  yerr=D50_h15_std/np.sqrt(len(Dt50_h15)),\
-                  align='center', alpha = 0.5, ecolor='black', capsize=10)
-rects1 = ax04b.bar(xpos - width/2, D50_h30_mean, width,\
-                  label=r'$h = 30\pm3~\mu m~(n =\ $'+ str(len(Dt50_h30)) + r'$)$',
-                  yerr=D50_h30_std/np.sqrt(len(Dt50_h30)),\
-                  align='center', alpha = 0.5, ecolor='black', capsize=10)
-ax04b.set_ylabel(r'$D$ [$\mu m^2$/sec]')
-ax04b.set_title('Translation diffusion (' + str(50) + '\% sucrose)')
-ax04b.set_xticks(xpos)
-ax04b.set_xticklabels(xaxis)
-ax04b.legend()
-ax04b.set_ylim([0, 3.5]);
-fig04b.tight_layout()
-
-# 40% sucrose
-xaxis = ['Parallel', 'Perpendicular 1', 'Perpendicular 2']
-xpos = np.arange(len(xaxis))
-D40_h15_mean = [np.mean(Dt40_h15[:,0]), np.mean(Dt40_h15[:,1]), np.mean(Dt40_h15[:,2])]
-D40_h15_std = [np.std(Dt40_h15[:,0]), np.std(Dt40_h15[:,1]), np.std(Dt40_h15[:,2])]
-D40_h30_mean = [np.mean(Dt40_h30[:,0]), np.mean(Dt40_h30[:,1]), np.mean(Dt40_h30[:,2])]
-D40_h30_std = [np.std(Dt40_h30[:,0]), np.std(Dt40_h30[:,1]), np.std(Dt40_h30[:,2])]
-
-width = 0.35
-plt.rcParams.update({'font.size': 22})
-fig04c, ax04c = plt.subplots(dpi=300, figsize=(10,6.2))
-rects2 = ax04c.bar(xpos + width/2, D40_h15_mean, width,\
-                  label=r'$h = 15\pm3~\mu m~(n =\ $'+ str(len(Dt40_h15)) + r'$)$',
-                  yerr=D40_h15_std/np.sqrt(len(Dt40_h15)),\
-                  align='center', alpha = 0.5, ecolor='black', capsize=10)
-rects1 = ax04c.bar(xpos - width/2, D40_h30_mean, width,\
-                  label=r'$h = 30\pm3~\mu m~(n =\ $'+ str(len(Dt40_h30)) + r'$)$',
-                  yerr=D40_h30_std/np.sqrt(len(Dt40_h30)),\
-                  align='center', alpha = 0.5, ecolor='black', capsize=10)
-ax04c.set_ylabel(r'$D$ [$\mu m^2$/sec]')
-ax04c.set_title('Translation diffusion (' + str(40) + '\% sucrose)')
-ax04c.set_xticks(xpos)
-ax04c.set_xticklabels(xaxis)
-ax04c.legend()
-ax04c.set_ylim([0, 3.5]);
-fig04c.tight_layout()
+# ax04a.figure.savefig(path + '/PDF/translation-bar.pdf')
 
 #%% Compute p-value
 # print(stats.ttest_ind(Dt70_h15[:,0],Dt70_h15[:,1]))
@@ -325,106 +225,239 @@ print('t, p for h = 15 um: ',t70_h15, p70_h15/2)
 t70_h30, p70_h30 = stats.ttest_ind(Dt70_h30[:,0],np.concatenate((Dt70_h30[:,1],Dt70_h30[:,2]),axis=0)) 
 print('t, p for h = 30 um: ',t70_h30, p70_h30/2)
 
-#%% Rotational diffusion
-suc_per = str(70)
-geo_h15_mean = geo70_h15_mean
-geo_h30_mean = geo70_h30_mean
-geo_h15_std = geo70_h15_std
-geo_h30_std = geo70_h30_std
-Dr_h15 = Dr70_h15
-Dr_h30 = Dr70_h30
+#%% Rotational (SCATTER)
+plt.rcParams.update({'font.size': 18})
+fig01,ax01 = plt.subplots(dpi=300, figsize=(6,5), tight_layout=True)
+ax01.errorbar(np.concatenate([geo40_h15_mean[:,1],geo40_h30_mean[:,1]]),
+              np.concatenate([Dr40_h15[:,0],Dr40_h30[:,0]]),
+              xerr=np.concatenate([geo40_h15_std[:,1],geo40_h30_std[:,1]]),
+              color='k',marker="o", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax01.errorbar(np.concatenate([geo50_h15_mean[:,1],geo50_h30_mean[:,1]]),
+              np.concatenate([Dr50_h15[:,0],Dr50_h30[:,0]]),
+              xerr=np.concatenate([geo50_h15_std[:,1],geo50_h30_std[:,1]]),
+              color='k',marker="^", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax01.errorbar(np.concatenate([geo70_h15_mean[:,1],geo70_h30_mean[:,1]]),
+              np.concatenate([Dr70_h15[:,0],Dr70_h30[:,0]]),
+              xerr=np.concatenate([geo70_h15_std[:,1],geo70_h30_std[:,1]]),
+              color='k',marker="s", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax01.set_xlabel(r'length [$\mu m$]');
+# ax01.set_title('Pitch diffusion')
+ax01.set_ylabel(r'$D_r$ [rad$^2$/sec]')
+ax01.legend(["40\%", "50\%", "70\%"])
+ax01.set_xlim([4,9.1]); ax01.set_ylim([0,.35]);
+ax01.figure.savefig(path + '/PDF/pitch-scatter.pdf')
 
-# pitch
-plt.rcParams.update({'font.size': 10})
-fig05a,ax05a = plt.subplots(dpi=300, figsize=(6,2))
-ax05a.errorbar(geo_h15_mean[:,1],Dr_h15[:,0],\
-              xerr=geo_h15_std[:,1]/np.sqrt(len(geo_h15_std)),
-              marker="s",linestyle = 'None',alpha=0.5,capsize=2)
-ax05a.errorbar(geo_h30_mean[:,1],Dr_h30[:,0],\
-              xerr=geo_h30_std[:,1]/np.sqrt(len(geo_h30_std)),
-              marker="s",linestyle = 'None',alpha=0.5,capsize=2)
-ax05a.set_xlabel(r'length [$\mu m$]');
-ax05a.set_title('Pitch diffusion (' + suc_per + '\% sucrose)')
-ax05a.set_ylabel(r'$Dr$ [$rad^2$/sec]')
-ax05a.legend(["$h = 15~\mu m$", "$h = 30~\mu m$"])
-ax05a.set_xlim([4, 12]);
+fig02,ax02 = plt.subplots(dpi=300, figsize=(6,5), tight_layout=True)
+ax02.errorbar(np.concatenate([geo40_h15_mean[:,1],geo40_h30_mean[:,1]]),
+              np.concatenate([Dr40_h15[:,1],Dr40_h30[:,1]]),
+              xerr=np.concatenate([geo40_h15_std[:,1],geo40_h30_std[:,1]]),
+              color='k',marker="o", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax02.errorbar(np.concatenate([geo50_h15_mean[:,1],geo50_h30_mean[:,1]]),
+              np.concatenate([Dr50_h15[:,1],Dr50_h30[:,1]]),
+              xerr=np.concatenate([geo50_h15_std[:,1],geo50_h30_std[:,1]]),
+              color='k',marker="^", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax02.errorbar(np.concatenate([geo70_h15_mean[:,1],geo70_h30_mean[:,1]]),
+              np.concatenate([Dr70_h15[:,1],Dr70_h30[:,1]]),
+              xerr=np.concatenate([geo70_h15_std[:,1],geo70_h30_std[:,1]]),
+              color='k',marker="s", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax02.set_xlabel(r'length [$\mu m$]');
+# ax02.set_title('Roll diffusion')
+ax02.set_ylabel(r'$D_r$ [rad$^2$/sec]')
+ax02.legend(["40\%", "50\%", "70\%"])
+ax02.set_xlim([4,9.1]); ax02.set_ylim([0,6]);
+# ax02.figure.savefig(path + '/PDF/roll-scatter.pdf')
 
-# roll
-plt.rcParams.update({'font.size': 10})
-fig05b,ax05b = plt.subplots(dpi=300, figsize=(6,2))
-ax05b.errorbar(geo_h15_mean[:,1],Dr_h15[:,1],\
-              xerr=geo_h15_std[:,1]/np.sqrt(len(geo_h15_std)),
-              marker="s",linestyle = 'None',alpha=0.5,capsize=2)
-ax05b.errorbar(geo_h30_mean[:,1],Dr_h30[:,1],\
-              xerr=geo_h30_std[:,1]/np.sqrt(len(geo_h30_std)),
-              marker="s",linestyle = 'None',alpha=0.5,capsize=2)
-ax05b.set_xlabel(r'length [$\mu m$]');
-ax05b.set_title('Roll diffusion (' + suc_per + '\% sucrose)')
-ax05b.set_ylabel(r'$Dr$ [$rad^2$/sec]')
-ax05b.legend(["$h = 15~\mu m$", "$h = 30~\mu m$"])
-ax05b.set_xlim([4, 12]);
+fig03,ax03 = plt.subplots(dpi=300, figsize=(6.4,5), tight_layout=True)
+ax03.errorbar(np.concatenate([geo40_h15_mean[:,1],geo40_h30_mean[:,1]]),
+              np.concatenate([Dr40_h15[:,2],Dr40_h30[:,2]]),
+              xerr=np.concatenate([geo40_h15_std[:,1],geo40_h30_std[:,1]]),
+              color='k',marker="o", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax03.errorbar(np.concatenate([geo50_h15_mean[:,1],geo50_h30_mean[:,1]]),
+              np.concatenate([Dr50_h15[:,2],Dr50_h30[:,2]]),
+              xerr=np.concatenate([geo50_h15_std[:,1],geo50_h30_std[:,1]]),
+              color='k',marker="^", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax03.errorbar(np.concatenate([geo70_h15_mean[:,1],geo70_h30_mean[:,1]]),
+              np.concatenate([Dr70_h15[:,2],Dr70_h30[:,2]]),
+              xerr=np.concatenate([geo70_h15_std[:,1],geo70_h30_std[:,1]]),
+              color='k',marker="s", markerfacecolor = 'None',
+              linestyle = 'None',alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax03.set_xlabel(r'length [$\mu m$]');
+# ax03.set_title('Yaw diffusion')
+ax03.set_ylabel(r'$D_r$ [rad$^2$/sec]')
+ax03.legend(["40\%", "50\%", "70\%"])
+ax03.set_xlim([4,9.1]); ax03.set_ylim([0,.15]);
+# ax03.figure.savefig(path + '/PDF/yaw-scatter.pdf')
 
-# yaw
-plt.rcParams.update({'font.size': 10})
-fig05c,ax05c = plt.subplots(dpi=300, figsize=(6,2))
-ax05c.errorbar(geo_h15_mean[:,1],Dr_h15[:,2],\
-              xerr=geo_h15_std[:,1]/np.sqrt(len(geo_h15_std)),
-              marker="s",linestyle = 'None',alpha=0.5,capsize=2)
-ax05c.errorbar(geo_h30_mean[:,1],Dr_h30[:,1],\
-              xerr=geo_h30_std[:,1]/np.sqrt(len(geo_h30_std)),
-              marker="s",linestyle = 'None',alpha=0.5,capsize=2)
-ax05c.set_xlabel(r'length [$\mu m$]');
-ax05c.set_title('Yaw diffusion (' + suc_per + '\% sucrose)')
-ax05c.set_ylabel(r'$Dr$ [$rad^2$/sec]')
-ax05c.legend(["$h = 15~\mu m$", "$h = 30~\mu m$"])
-ax05c.set_xlim([4, 12]);
+#%% Rotation (BAR)
+Dr40 = np.concatenate([Dr40_h15,Dr40_h30])
+Dr50 = np.concatenate([Dr50_h15,Dr50_h30])
+Dr70 = np.concatenate([Dr70_h15,Dr70_h30])
 
-#%% plot ratio of translation diffusion
-roll_h15 = Dr_h15[:,1]
-roll_h30 = Dr_h30[:,1]
-r_xaxis = np.round(max(max(Dr_h15[:,1]),max(Dr_h30[:,1]))/10)*10
+#%% horizontal
+yaxis = ['Pitch', 'Roll', 'Yaw']
+xpos = np.arange(len(yaxis))
+Dr40_mean = [np.mean(Dr40[:,0]), np.mean(Dr40[:,1]), np.mean(Dr40[:,2])]
+Dr40_std = [np.std(Dr40[:,0]), np.std(Dr40[:,1]), np.std(Dr40[:,2])]
+Dr50_mean = [np.mean(Dr50[:,0]), np.mean(Dr50[:,1]), np.mean(Dr50[:,2])]
+Dr50_std = [np.std(Dr50[:,0]), np.std(Dr50[:,1]), np.std(Dr50[:,2])]
+Dr70_mean = [np.mean(Dr70[:,0]), np.mean(Dr70[:,1]), np.mean(Dr70[:,2])]
+Dr70_std = [np.std(Dr70[:,0]), np.std(Dr70[:,1]), np.std(Dr70[:,2])]
 
-# fit CDF to the raw data
-def trunc_gauss_cdf(x, mu, sigma):
-    Fx = 1/2.0 * (1. + erf( (x-mu)/ (sigma*np.sqrt(2.))))
-    Fa = 1/2.0 * (1. + erf( (0-mu)/ (sigma*np.sqrt(2.))))
-    Fb = 1/2.0 * (1. + erf( (r_xaxis-mu)/ (sigma*np.sqrt(2.))))
-    Z = Fb - Fa
-    return (Fx - Fa) / Z
+width = 0.3
+plt.rcParams.update({'font.size': 22})
+fig04c, ax04c = plt.subplots(dpi=300, figsize=(10,5))
+rects1 = ax04c.barh(xpos - width, Dr40_mean, width,\
+                  label= r'$40\%~(n =\ $'+ str(len(Dr40)) + r'$)$',
+                  xerr=Dr40_std/np.sqrt(len(Dr40)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='o', edgecolor= 'black', capsize=10)
+rects2 = ax04c.barh(xpos, Dr50_mean, width,\
+                  label= r'$50\%~(n =\ $'+ str(len(Dr50)) + r'$)$',
+                  xerr=Dr50_std/np.sqrt(len(Dr50)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='x', edgecolor= 'black', capsize=10)
+rects3 = ax04c.barh(xpos + width, Dr70_mean, width,\
+                  label= r'$70\%~(n =\ $'+ str(len(Dr70)) + r'$)$',
+                  xerr=Dr70_std/np.sqrt(len(Dr70)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='+', edgecolor= 'black',  capsize=10)
+ax04c.set_xlabel(r'$D_r$ [rad$^2$/sec]')
+# ax04c.set_title('Rotation diffusion')
+ax04c.set_yticks(xpos)
+ax04c.set_yticklabels(yaxis)
+# ax04c.legend()
+ax04c.set_xlim([0, 3.6]);
+fig04c.tight_layout()
+# ax04c.figure.savefig(path + '/PDF/rotation-bar-A.pdf')
 
-def fitCDF(x):
-    model = Model(trunc_gauss_cdf, prefix='g1_')
-    params = model.make_params(g1_mu = 7, g1_sigma = 1)
-    yaxis = np.linspace(0,1,len(x), endpoint=False)
-    xaxis = np.sort(x)
-    xplot = np.linspace(0,r_xaxis,1000, endpoint=False)
-    result = model.fit(yaxis,params,x=xaxis)
-    yplot = trunc_gauss_cdf(xplot, result.params['g1_mu'].value,\
-                          result.params['g1_sigma'].value)
-    return xplot, yplot
+# only pitch and yaw
+yaxis = ['Pitch', 'Yaw']
+xpos = np.arange(len(yaxis))
+Dr40_mean = [np.mean(Dr40[:,0]), np.mean(Dr40[:,2])]
+Dr40_std = [np.std(Dr40[:,0]), np.std(Dr40[:,2])]
+Dr50_mean = [np.mean(Dr50[:,0]), np.mean(Dr50[:,2])]
+Dr50_std = [np.std(Dr50[:,0]), np.std(Dr50[:,2])]
+Dr70_mean = [np.mean(Dr70[:,0]), np.mean(Dr70[:,2])]
+Dr70_std = [np.std(Dr70[:,0]), np.std(Dr70[:,2])]
 
-xplot1_h15, yplot1_h15 = fitCDF(roll_h15)
-xplot1_h30, yplot1_h30 = fitCDF(roll_h30)
+width = 0.2
+plt.rcParams.update({'font.size': 22})
+fig04d, ax04d = plt.subplots(dpi=300, figsize=(10,7))
+rects1 = ax04d.barh(xpos - width, Dr40_mean, width,\
+                  label= r'$40\%~(n =\ $'+ str(len(Dr40)) + r'$)$',
+                  xerr=Dr40_std/np.sqrt(len(Dr40)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='o', edgecolor= 'black', capsize=10)
+rects2 = ax04d.barh(xpos, Dr50_mean, width,\
+                  label= r'$50\%~(n =\ $'+ str(len(Dr50)) + r'$)$',
+                  xerr=Dr50_std/np.sqrt(len(Dr50)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='x', edgecolor= 'black', capsize=10)
+rects3 = ax04d.barh(xpos + width, Dr70_mean, width,\
+                  label= r'$70\%~(n =\ $'+ str(len(Dr70)) + r'$)$',
+                  xerr=Dr70_std/np.sqrt(len(Dr70)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='+', edgecolor= 'black',  capsize=10)
+ax04d.set_xlabel(r'$D_r$ [rad$^2$/sec]')
+# ax04d.set_title('Rotation diffusion')
+ax04d.set_yticks(xpos)
+ax04d.set_yticklabels(yaxis)
+ax04d.legend()
+ax04d.set_xlim([0, 0.12]);
+fig04d.tight_layout()
+# ax04d.figure.savefig(path + '/PDF/rotation-bar-B.pdf')
 
-# plot them
-plt.rcParams.update({'font.size': 15})
-fig1,ax1 = plt.subplots(dpi=300, figsize=(6,5))
-weights_h15 = np.ones_like(roll_h15)/len(roll_h15)
-weights_h30 = np.ones_like(roll_h30)/len(roll_h15)
-ax1.hist(roll_h15, 5, weights=weights_h15, facecolor='C0', alpha=0.5)
-ax1.hist(roll_h30, 5, weights=weights_h30, facecolor='C1', alpha=0.5)
-ax1.plot(np.sort(roll_h15),np.linspace(0,1,len(roll_h15),endpoint=False),\
-         'C0o',MarkerSize=3, alpha=0.5)
-ax1.plot(np.sort(roll_h30),np.linspace(0,1,len(roll_h30),endpoint=False),\
-         'C1o',MarkerSize=3, alpha=0.5)
-ax1.plot(xplot1_h15, yplot1_h15,'C0')
-ax1.plot(xplot1_h30, yplot1_h30,'C1')
-ax1.set_title(r'$D_{roll} -\ $'  + str(suc_per) + '\% sucrose' )
-ax1.set_xlabel(r'$D_{roll}$ [$rad^2$/sec]');
-ax1.set_ylabel(r'Cumulative Probability')
-ax1.set_ylim([-0.05, 1.1]); ax1.set_xlim([0, r_xaxis]);
-ax1.legend(["$h = 15\pm3~\mu m~(n =\ $"+ str(len(Dr_h15)) + r'$)$',\
-            "$h = 30\pm3~\mu m~(n =\ $"+ str(len(Dr_h30)) + r'$)$'])
+#%% Vertical
+xaxis = ['Pitch', 'Yaw']
+xpos = np.arange(len(xaxis))
+Dr40_mean = [np.mean(Dr40[:,0]), np.mean(Dr40[:,2])]
+Dr40_std = [np.std(Dr40[:,0]), np.std(Dr40[:,2])]
+Dr50_mean = [np.mean(Dr50[:,0]), np.mean(Dr50[:,2])]
+Dr50_std = [np.std(Dr50[:,0]), np.std(Dr50[:,2])]
+Dr70_mean = [np.mean(Dr70[:,0]), np.mean(Dr70[:,2])]
+Dr70_std = [np.std(Dr70[:,0]), np.std(Dr70[:,2])]
+
+width = 0.3
+plt.rcParams.update({'font.size': 22})
+fig04a, ax04a = plt.subplots(dpi=300, figsize=(10,6.2))
+rects1 = ax04a.bar(xpos - width, Dr40_mean, width,\
+                  label= r'$40\%~(n =\ $'+ str(len(Dr40)) + r'$)$',
+                  yerr=Dr40_std/np.sqrt(len(Dr40)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='o', edgecolor= 'black', capsize=10)
+rects2 = ax04a.bar(xpos, Dr50_mean, width,\
+                  label= r'$50\%~(n =\ $'+ str(len(Dr50)) + r'$)$',
+                  yerr=Dr50_std/np.sqrt(len(Dr50)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='x', edgecolor= 'black', capsize=10)
+rects3 = ax04a.bar(xpos + width, Dr70_mean, width,\
+                  label= r'$70\%~(n =\ $'+ str(len(Dr70)) + r'$)$',
+                  yerr=Dr70_std/np.sqrt(len(Dr70)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='+', edgecolor= 'black',  capsize=10)
+ax04a.set_ylabel(r'$D_r$ [rad$^2$/sec]')
+ax04a.set_title('Rotation diffusion')
+ax04a.set_xticks(xpos)
+ax04a.set_xticklabels(xaxis)
+ax04a.legend()
+ax04a.set_ylim([0, 0.125]);
+fig04a.tight_layout()
+ax04a.figure.savefig(path + '/PDF/rotation-bar-A.pdf')
+
+# Roll only
+xaxis = ['Roll']
+xpos = np.arange(len(xaxis))
+Dr40_mean = [np.mean(Dr40[:,1])]
+Dr40_std = [np.std(Dr40_h15[:,1])]
+Dr50_mean = [np.mean(Dr50[:,1])]
+Dr50_std = [np.std(Dr50_h15[:,1])]
+Dr70_mean = [np.mean(Dr70[:,1])]
+Dr70_std = [np.std(Dr70_h15[:,1])]
+
+width = 0.3
+plt.rcParams.update({'font.size': 22})
+fig04a, ax04a = plt.subplots(dpi=300, figsize=(10,6.2))
+rects1 = ax04a.bar(xpos - width, Dr40_mean, width,\
+                  label= r'$40\%~(n =\ $'+ str(len(Dr40)) + r'$)$',
+                  yerr=Dr40_std/np.sqrt(len(Dr40)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='o', edgecolor= 'black', capsize=10)
+rects2 = ax04a.bar(xpos, Dr50_mean, width,\
+                  label= r'$50\%~(n =\ $'+ str(len(Dr50)) + r'$)$',
+                  yerr=Dr50_std/np.sqrt(len(Dr50)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='x', edgecolor= 'black', capsize=10)
+rects3 = ax04a.bar(xpos + width, Dr70_mean, width,\
+                  label= r'$70\%~(n =\ $'+ str(len(Dr70)) + r'$)$',
+                  yerr=Dr70_std/np.sqrt(len(Dr70)),\
+                  align='center', alpha = 0.5, ecolor='black',
+                  color='gray', hatch ='+', edgecolor= 'black',  capsize=10)
+ax04a.set_ylabel(r'$D_r$ [rad$^2$/sec]')
+ax04a.set_title('Rotation diffusion')
+ax04a.set_xticks(xpos)
+ax04a.set_xticklabels(xaxis)
+ax04a.legend()
+# ax04a.set_ylim([0, 0.125]);
+fig04a.tight_layout()
+ax04a.figure.savefig(path + '/PDF/rotation-bar-B.pdf')
+
 
 #%% rotational diffusion: pitch, roll, yaw
 

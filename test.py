@@ -9,15 +9,16 @@ pxum = 0.115;
 camExposure_ms = 2
 sweep_um = 15
 stepsize_nm = 400
-expTime = 1/ (sweep_um/stepsize_nm * camExposure_ms)
+# expTime = 1/ (sweep_um/stepsize_nm * camExposure_ms)
+vol_exp = 1e-3 * camExposure_ms * (sweep_um*1e3/stepsize_nm) 
 
-Nframes = 300; pxum = 0.115; D = 0.53;
-sigma_square = 2 * D * expTime
+Nframes = 50; pxum = 0.115; D = 1.5;
+sigma_square = 2 * D * vol_exp
 cmFluc = np.zeros([Nframes,3]);
 for i in range(Nframes):
     cmFluc[i,0] = cmFluc[i-1,0] + np.random.normal(0, np.sqrt(sigma_square))
 
-time_x, MSD_cm = regMSD(1, Nframes, cmFluc[:,0], expTime)
+time_x, MSD_cm = regMSD(Nframes, cmFluc[:,0], vol_exp)
 
 # Fit the MSDs curve
 rData = 0.05;
@@ -32,7 +33,7 @@ fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
 ax0.plot(time_x,MSD_cm,c='k',marker="s",mfc='none',ms=9,ls='None',alpha=0.5) 
 ax0.plot(time_x,fitN[0]*time_x,c='k',alpha=0.2)   
 # ax0.plot(time_x,time_x**2,c='b',alpha=0.2) 
-# ax0.set_xscale('log'); ax0.set_yscale('log'); 
+ax0.set_xscale('log'); ax0.set_yscale('log'); 
 ax0.set_title('MSD translation')
 ax0.set_xlabel(r'Log($\tau$) [sec]');
 ax0.set_ylabel(r'Log(MSD) [$\mu m^2$/sec]')

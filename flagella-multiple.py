@@ -14,29 +14,25 @@ import helixFun
 import imProcess
 import msd
 from msd import regMSD
-import movingHx  
 import glob
-from natsort import natsorted, ns
-from pathlib import Path
+from natsort import natsorted
+
+# viscosity to adjust A, B, D
+vis70 = 673; vis50 = 15.04; vis40 = 6.20;
+suc_per = str(50); vis = vis50
 
 path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
 # path = r"D:\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
 # path = r"/mnt/opm2/20211022_franky/"
 
-fName = path + "/20211022a_suc40_h15um"
+# fName = path + "/20211022a_suc40_h15um"
 # fName = path + "/20211022b_suc40_h30um"
-# fName = path + "/20211018a_suc50_h15um"
+fName = path + "/20211018a_suc50_h15um"
 # fName = path + "/20211018b_suc50_h30um"
 # fName = path + "/20211022c_suc70_h15um"
 # fName = path + "/20211022d_suc70_h30um" 
 
 images = glob.glob(fName + '/*.npy')
-
-vis70 = 673 # 70% sucrose, unit: mPa.s (Quintas et al. 2005)
-vis50 = 15.04 # 50% sucrose, unit: mPa.s (Telis et al. 2005)
-vis40 = 6.20 # 40% sucrose, unit: mPa.s (Telis et al. 2005)
-suc_per = str(40)
-vis = vis40
 
 # Parameters
 pxum = 0.115; 
@@ -48,6 +44,7 @@ vol_exp = 1e-3 * camExposure_ms * (sweep_um*1e3/stepsize_nm)  # in sec
 thresvalue_in = 0.8
 
 start = time.perf_counter()
+
 #%% Go through every folder
 for j in range(len(images)):
 
@@ -115,7 +112,7 @@ for j in range(len(images)):
         else:
             axes, axes_ref = consistentPCA(axes, axes_ref)
         
-        # Find the second vector orthogonal to the major axis using skeletonize
+        # Find the second vector orthogonal to the major axis 
         if frame == 0:
             ep_ref = 0
             ep, Coord = endPoints(X0, CM1, axes)
@@ -178,20 +175,22 @@ for j in range(len(images)):
         dirAng[frame,2] = np.arccos(n1[frame,2])
     
     # Store all the tracking information
-    ate = np.asarray([EuAng, dirAng, cm, localAxes])
-    np.save(fileName[:len(fileName)-4] + "-results",ate)
+    angleCM = np.asarray([EuAng, dirAng, cm])
+    vectorN = localAxes
+    np.save(fileName[:len(fileName)-4] + "-angleCM",angleCM)
+    np.save(fileName[:len(fileName)-4] + "-vectorN",vectorN)
     
     # All the MSD of interest
-    fromMSD = msd.theMSD(0.8, Nframes, cm, dirAng,\
+    fromMSD = msd.theMSD(0.8, Nframes, cm, \
                          EuAng[:,1], localAxes, vol_exp)
     time_x, MSD_N, MSD_S, MSD_combo = fromMSD.trans_combo_MSD()
-    # time_x, MSD_combo = fromMSD.combo_MSD()
     time_x, MSD_pitch = regMSD(0.8, Nframes, EuAng[:,0], vol_exp)
     time_x, MSD_roll = regMSD(0.8, Nframes, EuAng[:,1], vol_exp)
     time_x, MSD_yaw = regMSD(0.8, Nframes, EuAng[:,2], vol_exp)
 
     # Fit the MSDs curve
-    nData = np.int32(0.1*Nframes) # number of data fitted
+    rData = 0.1;
+    nData = np.int32(rData*Nframes) # number of data fitted
     def MSDfit(x, a):
         return a * x   
     fitN = optimize.curve_fit(MSDfit, time_x[0:nData], MSD_N[0:nData],p0=0.1)
@@ -215,15 +214,15 @@ for j in range(len(images)):
           " with std = ", np.std(lenfla))
     print("flagella pitch-length [um] = ", np.mean(pitfla),\
           " with std = ", np.std(pitfla))
-    print("Fit for parallel, perpen-1, perpen-2:",fitN[0], fitS[0])
-    print("Fit for pitch, roll, yaw:",fitPitch[0], fitRoll[0], fitYaw[0])
-    print("Fit for combo:",fitCombo[0])
-    print("Matrix A, B, D for " + fName)
+    print("parallel, perpendicular, ratio:",fitN[0], fitS[0], fitN[0]/fitS[0])
+    print("pitch, roll, yaw:",fitPitch[0], fitRoll[0], fitYaw[0])
+    print("combo:",fitCombo[0])
+    print("A, B, D for " + fName)
     A, B, D = BernieMatrix(fitN[0]*1e-12,fitRoll[0],fitCombo[0]*1e-6)
     A2, B2, D2 = BernieMatrix(fitN[0]*1e-12*(vis),fitRoll[0]*(vis),\
                               fitCombo[0]*1e-6*(vis)) 
     print('A, B, D:', A, B, D)
-    print("A, B, D (adjusted '+ suc_per + '\% sucrose):", A2, B2, D2)
+    print('A, B, D (adjusted '+ suc_per + '\% sucrose):', A2, B2, D2)
     
     # print to excel
     data = [['number of frames', Nframes],\
@@ -235,6 +234,6 @@ for j in range(len(images)):
             ['combo-fit [um.rad/sec^2]',fitCombo[0][0]],\
             ['A, B, D', A[0], B[0], D[0]],\
             ['A, B, D (adjusted '+ suc_per + '\% sucrose)', A2[0], B2[0], D2[0]]\
-                ]
+           ]
     df = pd.DataFrame(data)
     df.to_excel(fileName[:len(fileName)-4] + '.xlsx', index = False, header = False)  

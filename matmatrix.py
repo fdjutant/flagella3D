@@ -1,6 +1,57 @@
 import numpy as np
 from scipy.spatial import ConvexHull
 from scipy.spatial.distance import cdist
+from lmfit import Model
+from scipy.special import erf
+
+#%% Fit CDF and PDF of Normal distribution
+def MSDfit(x, a):
+    return a * x  
+
+def gauss_cdf(x, amp, mu, sigma):
+    Fx = amp/2.0 * (1. + erf( (x-mu)/ (sigma*np.sqrt(2.))))
+    return Fx
+
+def gauss_two_cdf(x, amp1, amp2, mu1, mu2, sigma1, sigma2):
+    Fx = amp1/2.0 * (1. + erf( (x-mu1)/ (sigma1*np.sqrt(2.)))) +\
+         amp2/2.0 * (1. + erf( (x-mu2)/ (sigma2*np.sqrt(2.))))
+    return Fx
+
+def gauss_pdf(x, amp, mu, sigma):
+    Fx = amp * np.exp(-0.5*(x-mu)**2/sigma**2) / (sigma * np.sqrt(2*np.pi))
+    return Fx
+
+def gauss_two_pdf(x, amp1, amp2, mu1, mu2, sigma1, sigma2):
+    Fx = amp1 * np.exp(-0.5*(x-mu1)**2/sigma1**2) / (sigma1 * np.sqrt(2*np.pi)) +\
+         amp2 *np.exp(-0.5*(x-mu2)**2/sigma2**2) / (sigma2 * np.sqrt(2*np.pi))
+    return Fx
+
+def fitCDF(x):
+    model = Model(gauss_cdf, prefix='g1_')
+    params = model.make_params(g1_amp = 1, g1_mu = 0, g1_sigma = 0.5)
+    yaxis = np.linspace(0,1,len(x), endpoint=False)
+    xaxis = np.sort(x)
+    result = model.fit(yaxis,params,x=xaxis)
+    amp = result.params['g1_amp'].value
+    mean = result.params['g1_mu'].value
+    sigma = result.params['g1_sigma'].value
+    return amp, mean, sigma
+
+def fit2CDF(x):
+    model = Model(gauss_cdf, prefix='g1_') +\
+            Model(gauss_cdf, prefix='g2_')
+    params = model.make_params(g1_amp=0.5, g1_mu=0, g1_sigma=0.5,
+                               g2_amp=0.5, g2_mu=0, g2_sigma=1.)
+    yaxis = np.linspace(0,1,len(x), endpoint=False)
+    xaxis = np.sort(x)
+    result = model.fit(yaxis,params,x=xaxis)
+    amp1 = result.params['g1_amp'].value
+    amp2 = result.params['g2_amp'].value
+    mean1 = result.params['g1_mu'].value
+    mean2 = result.params['g2_mu'].value
+    sigma1 = result.params['g1_sigma'].value
+    sigma2 = result.params['g2_sigma'].value
+    return amp1, amp2, mean1, mean2, sigma1, sigma2
 
 #%% Define all necessary functions
 def rotmat(angle): # forming rotation matrix
@@ -88,7 +139,7 @@ def endPoints(X0,CM1,axes):
     while lentest < 0:
         endpoint = np.where(disToOrigin == np.sort(disToOrigin)[-k])[0][0]
         k += 1
-        lentest = np.dot(Coord[endpoint],axes)
+        lentest = np.dot(Coord[endpoint],axes[0])
     
     return endpoint, Coord
 
@@ -100,7 +151,7 @@ def flaLength(X0):
     hdist = cdist(hullpoints, hullpoints, metric='euclidean') # finding the best pair
     bestpair = np.unravel_index(hdist.argmax(), hdist.shape)
 
-    thelength = np.linalg.norm([hullpoints[bestpair[0]][0]-hullpoints[bestpair[1]][0]])
+    thelength = np.linalg.norm([hullpoints[bestpair[0]]-hullpoints[bestpair[1]]])
     
     return thelength
 
