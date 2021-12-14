@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 plt.rcParams['text.usetex'] = True
 plt.rcParams.update({'font.size': 10})
 from sklearn.decomposition import PCA
-from scipy import stats, optimize
+from scipy import optimize
 from scipy.ndimage import gaussian_filter
 import pandas as pd
 import time

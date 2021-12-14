@@ -3,11 +3,9 @@ import glob
 import pandas as pd
 from scipy import stats
 import matplotlib.pyplot as plt
-from scipy.special import erf
-from lmfit import Model
-from scipy import stats, optimize
+
 plt.rcParams['text.usetex'] = True
-# plt.rcParams.update({'font.size': 10})
+plt.rcParams.update({'font.size': 10})
 plt.rcParams.update({
     "text.usetex": True,
     "font.family": "sans-serif",

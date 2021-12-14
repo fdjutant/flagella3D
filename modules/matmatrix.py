@@ -5,30 +5,27 @@ from lmfit import Model
 from scipy.special import erf
 
 #%% Fit CDF and PDF of Normal distribution
-def MSDfit(x, a):
+def MSDfit_old(x, a):
     return a * x  
+
+def MSDfit(x, a, b):
+    return b + a * x  
 
 def gauss_cdf(x, amp, mu, sigma):
     Fx = amp/2.0 * (1. + erf( (x-mu)/ (sigma*np.sqrt(2.))))
-    return Fx
-
-def gauss_two_cdf(x, amp1, amp2, mu1, mu2, sigma1, sigma2):
-    Fx = amp1/2.0 * (1. + erf( (x-mu1)/ (sigma1*np.sqrt(2.)))) +\
-         amp2/2.0 * (1. + erf( (x-mu2)/ (sigma2*np.sqrt(2.))))
     return Fx
 
 def gauss_pdf(x, amp, mu, sigma):
     Fx = amp * np.exp(-0.5*(x-mu)**2/sigma**2) / (sigma * np.sqrt(2*np.pi))
     return Fx
 
-def gauss_two_pdf(x, amp1, amp2, mu1, mu2, sigma1, sigma2):
-    Fx = amp1 * np.exp(-0.5*(x-mu1)**2/sigma1**2) / (sigma1 * np.sqrt(2*np.pi)) +\
-         amp2 *np.exp(-0.5*(x-mu2)**2/sigma2**2) / (sigma2 * np.sqrt(2*np.pi))
-    return Fx
-
 def fitCDF(x):
     model = Model(gauss_cdf, prefix='g1_')
-    params = model.make_params(g1_amp = 1, g1_mu = 0, g1_sigma = 0.5)
+    params = model.make_params()
+    params['g1_amp'].set(1., vary=False)
+    params['g1_mu'].set(0., vary=False)
+    params['g1_sigma'].set(0.5)
+    
     yaxis = np.linspace(0,1,len(x), endpoint=False)
     xaxis = np.sort(x)
     result = model.fit(yaxis,params,x=xaxis)
@@ -37,21 +34,40 @@ def fitCDF(x):
     sigma = result.params['g1_sigma'].value
     return amp, mean, sigma
 
+def gauss_two_pdf(x, amp1, mu1, mu2, sigma1, sigma2):
+    Fx = amp1 * np.exp(-0.5*(x-mu1)**2/sigma1**2) / (sigma1 * np.sqrt(2*np.pi)) +\
+         (1.-amp1) *np.exp(-0.5*(x-mu2)**2/sigma2**2) / (sigma2 * np.sqrt(2*np.pi))
+    return Fx
+
+def gauss_two_cdf(x, amp1, mu1, mu2, sigma1, sigma2):
+    Fx = amp1/2.0 * (1. + erf( (x-mu1)/ (sigma1*np.sqrt(2.)))) +\
+         (1. - amp1)/2.0 * (1. + erf( (x-mu2)/ (sigma2*np.sqrt(2.))))
+    return Fx 
+
 def fit2CDF(x):
-    model = Model(gauss_cdf, prefix='g1_') +\
-            Model(gauss_cdf, prefix='g2_')
-    params = model.make_params(g1_amp=0.5, g1_mu=0, g1_sigma=0.5,
-                               g2_amp=0.5, g2_mu=0, g2_sigma=1.)
+    model = Model(gauss_two_cdf, prefix='g1_') 
+    params = model.make_params()
+    params['g1_amp1'].set(0.5, min=0., max=1.)
+    params['g1_mu1'].set(0., vary=False)
+    params['g1_mu2'].set(0., vary=False)
+    params['g1_sigma1'].set(0.5)
+    params['g1_sigma2'].set(0.5)    
+    
     yaxis = np.linspace(0,1,len(x), endpoint=False)
     xaxis = np.sort(x)
     result = model.fit(yaxis,params,x=xaxis)
-    amp1 = result.params['g1_amp'].value
-    amp2 = result.params['g2_amp'].value
-    mean1 = result.params['g1_mu'].value
-    mean2 = result.params['g2_mu'].value
-    sigma1 = result.params['g1_sigma'].value
-    sigma2 = result.params['g2_sigma'].value
-    return amp1, amp2, mean1, mean2, sigma1, sigma2
+    if result.params['g1_amp1'].value > 0.5:
+        amp1 = result.params['g1_amp1'].value
+        sigma1 = result.params['g1_sigma1'].value
+        sigma2 = result.params['g1_sigma2'].value
+    else:
+        amp1= 1 - result.params['g1_amp1'].value
+        sigma1 = result.params['g1_sigma2'].value
+        sigma2 = result.params['g1_sigma1'].value
+    mean1 = result.params['g1_mu1'].value
+    mean2 = result.params['g1_mu2'].value
+    
+    return amp1, mean1, mean2, sigma1, sigma2
 
 #%% Define all necessary functions
 def rotmat(angle): # forming rotation matrix

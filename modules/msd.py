@@ -2,17 +2,14 @@ from matmatrix import rotmat, movAverage, phaseUnwrap
 import numpy as np
 from scipy import stats
 
-def regMSD(Nframes, cm, vol_exp):
-           
-    # decide how long the lag time will be
-    NSeparation = np.round(0.05*Nframes,0).astype(int);
-    
+def regMSD(Nframes, cm, vol_exp, nInterval):
+              
     # create x-axis for plotting
-    time_x = np.linspace(0,NSeparation,NSeparation)*vol_exp  
-    MSD = np.zeros(NSeparation)
+    time_x = np.linspace(0,nInterval,nInterval)*vol_exp  
+    MSD = np.zeros(nInterval)
     
     j = 1;
-    while j < NSeparation:
+    while j < nInterval:
         temp =[];
         i = 0;
         while i + j <= Nframes-1:
@@ -77,6 +74,7 @@ def trans_stepSize(cm, localAxes):
         
     return stepSize
 
+
 def rot_stepSize(EuAng):
         
     # compute step size from adjacent points
@@ -89,46 +87,44 @@ def rot_stepSize(EuAng):
     return stepSize
 
 class theMSD:
-    def __init__(self, Nframes, cm, rollAng, localAxes, expTime):
+    def __init__(self, Nframes, cm, rollAng, localAxes, expTime, nInterval):
         self.Nframes = Nframes
         self.cm = cm
         self.rollAng = rollAng
         self.localAxes = localAxes
         self.expTime = expTime
+        self.nInterval = nInterval
         
     def time_MSD(self):
         
         # compute exposure time
         vol_exp = self.expTime
-        
-        # decide how long the lag time will be
-        NSeparation = np.round(0.05*self.Nframes,0).astype(int);
-        
+               
         # create x-axis for plotting
-        time_x = np.linspace(0,NSeparation,NSeparation)*vol_exp  
+        time_x = np.linspace(0,self.nInterval,self.nInterval)*vol_exp  
     
-        return NSeparation, time_x  
+        return time_x  
         
     def trans_combo_MSD(self):
 
-        NSeparation, time_x = self.time_MSD()
+        time_x = self.time_MSD()
         
         # import major vector        
         n1 = self.localAxes[:,0]; n2 = self.localAxes[:,1];
         n3 = self.localAxes[:,2]
 
         # compute translation MSD at 3 different axes
-        MSD_S1 = np.zeros(NSeparation); MSD_N = np.zeros(NSeparation);
-        MSD_NR = np.zeros(NSeparation); MSD_S2 = np.zeros(NSeparation);
+        MSD_S1 = np.zeros(self.nInterval); MSD_N = np.zeros(self.nInterval);
+        MSD_NR = np.zeros(self.nInterval); MSD_S2 = np.zeros(self.nInterval);
         j = 1;
-        while j < NSeparation:
+        while j < self.nInterval+1:
             tempN = []; tempS1 = []; tempS2 = []; tempNR = [];
             i = 0;
             while i + j <= self.Nframes-1:
                 
                 temp1 =[]; temp2 = []; temp3 = [];
                 k = 0;
-                while k+1 <= j:
+                while k < j:
                     deltaXYZ = (self.cm[i+k+1,:]-\
                                 self.cm[i+k,:])*0.115
                     temp1.append(np.dot(n1[i+k,:],deltaXYZ))
@@ -144,10 +140,61 @@ class theMSD:
                 tempNR.append(np.sum(temp1)*tempR)
                 
                 i += 1
-            MSD_N[j] = np.mean(tempN)
-            MSD_S1[j] = np.mean(tempS1)
-            MSD_S2[j] = np.mean(tempS2)
-            MSD_NR[j] = np.mean(tempNR)
+            MSD_N[j-1] = np.mean(tempN)
+            MSD_S1[j-1] = np.mean(tempS1)
+            MSD_S2[j-1] = np.mean(tempS2)
+            MSD_NR[j-1] = np.mean(tempNR)
             j += 1
         
         return time_x, MSD_N, MSD_S1, MSD_S2, MSD_NR
+    
+    
+
+class theSS:
+    def __init__(self, Nframes, cm, rollAng, localAxes, expTime, nInterval):
+        self.Nframes = Nframes
+        self.cm = cm
+        self.rollAng = rollAng
+        self.localAxes = localAxes
+        self.expTime = expTime
+        self.nInterval = nInterval
+        
+    def trans_SS(self):
+        
+        # import major vector        
+        n1 = self.localAxes[:,0]; n2 = self.localAxes[:,1];
+        n3 = self.localAxes[:,2]
+
+        # compute translation MSD at 3 different axes
+        SS_N = []; SS_S1 = []; SS_S2 = [];
+        j = 1;
+        while j < self.nInterval+1:
+            tempN = []; tempS1 = []; tempS2 = []; 
+            i = 0;
+            while i + j <= self.Nframes-1:
+                
+                temp1 =[]; temp2 = []; temp3 = [];
+                k = 0;
+                while k < j:
+                    deltaXYZ = (self.cm[i+k+1,:]-\
+                                self.cm[i+k,:])*0.115
+                    temp1.append(np.dot(n1[i+k,:],deltaXYZ))
+                    temp2.append(np.dot(n2[i+k,:],deltaXYZ))
+                    temp3.append(np.dot(n3[i+k,:],deltaXYZ))
+                    k += 1
+                
+                tempN.append(np.sum(temp1))
+                tempS1.append(np.sum(temp2))
+                tempS2.append(np.sum(temp3))
+                
+                i += 1
+            SS_N.append(tempN)
+            SS_S1.append(tempS1)
+            SS_S2.append(tempS2)
+            j += 1
+        SS_N = np.array(SS_N, dtype=object)
+        SS_S1 = np.array(SS_S1, dtype=object)
+        SS_S2 = np.array(SS_S2, dtype=object)
+        
+        return SS_N, SS_S1, SS_S2
+    

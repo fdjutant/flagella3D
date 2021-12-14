@@ -1,4 +1,6 @@
-# Import all necessary libraries
+#%% Import all necessary libraries
+import sys
+sys.path.insert(0, './modules')
 import numpy as np
 import dask.array as da
 import matplotlib.pyplot as plt
@@ -18,8 +20,9 @@ from msd import regMSD, trans_stepSize, rot_stepSize
 from lmfit import Model
 from scipy.special import erf
 import movingHx  
-   
-simORreal = True # True: simulation, False: actual data
+import cv2 
+
+simORreal = False # True: simulation, False: actual data
 if simORreal: # synthetic data
 
     # time settings in the light sheet
@@ -52,30 +55,27 @@ if simORreal: # synthetic data
                                   spin, drift,\
                                   hxInt, hxVar, noiseInt, noiseVar, vol_exp)
     intensity, cmInput, EuAngInput, dirAngInput, vectNInput = fromHx.movHx()
-    # da.to_npy_stack('syn.npy',da.from_array(intensity))
-    # np.save('syn-att.npy',np.array([cmInput, EuAngInput, dirAngInput]))
-    # np.save('syn-vect.npy',np.array(vectNInput))
-    
-    
-    
+       
     Nframes = intensity.shape[0]
         
     print('--synthetic data creation is completed--')
 else:
-    # path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
-    path = r"D:\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data\synthetic-data"
-    # fName = path + '/20211022d_suc70_h30um/suc70-h30-23-A.npy'
-    fName = path + '/syn.npy'
-    cmInput, EuAngInput, dirAngInput = np.load(path + '/syn-att.npy')
-    vectNInput = np.load(path + '/syn-vect.npy')
+    path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
+    fName = path + '/20211018b_suc50_h30um/suc50-h30-12-A.npy'
+    #fName = path + '/20211022d_suc70_h30um/suc70-h30-05-B.npy'
     
-    intensity = da.from_npy_stack(fName)
-    Nframes = intensity.shape[0]
-    frame0 = intensity[0].compute()
-    print("Max pixel:", np.max(frame0[np.nonzero(frame0)]),"\n",\
-          "Min pixel:", np.min(frame0[np.nonzero(frame0)]),"\n",\
-          "Avg pixel:", np.mean(frame0[np.nonzero(frame0)]),"\n",\
-          "Num frame:", len(intensity) )
+    # path = r"D:\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data\synthetic-data"
+    # fName = path + '/syn.npy'
+    # cmInput, EuAngInput, dirAngInput = np.load(path + '/syn-att.npy')
+    # vectNInput = np.load(path + '/syn-vect.npy')
+    
+    intensity = np.array(da.from_npy_stack(fName))
+    
+    if intensity.shape[0] > 300:
+        Nframes = 300
+    else:
+        Nframes = intensity.shape[0]
+    print("File input completed")
 
 #%% Image analysis and curve fitting
 xb = []; xb0 = []; xp = []; xp0 = []
@@ -88,11 +88,11 @@ eigenvec = np.zeros([Nframes,3,3]);
 coord = [];
 localAxes = np.zeros([Nframes,3,3]);
 endpt = np.zeros([Nframes]).astype('int')
-    
+
 pxum = 0.115
 start = time.perf_counter()
 
-for frame in range(len(intensity)):
+for frame in range(1):
 
     if simORreal:
         # Extract coordinates from the image (no threshold in Napari)
@@ -117,16 +117,16 @@ for frame in range(len(intensity)):
     else:
         # Image processing
         tstart_thresh = time.perf_counter()
-        thresvalue = 0.8; sizes = 0;    
+        thresvalue = 0.85; sizes = 0;   
         fromImgPro = imProcess.ImPro(intensity[frame],thresvalue)
-        img = fromImgPro.thresVol()                     # binary image
+        img = fromImgPro.thresVol()                   # binary image
         sizes = max(fromImgPro.selectLargest()[0])    # largest body only
         
         att = 0;
         if sizes < 900:
             att = 1
             while sizes < 900 and att < 20: 
-                thresvalue = thresvalue - 0.025
+                thresvalue = thresvalue + 0.05
                 fromImgPro = imProcess.ImPro(intensity[frame],thresvalue)
                 img = fromImgPro.thresVol()                 
                 sizes = max(fromImgPro.selectLargest()[0])
@@ -134,7 +134,7 @@ for frame in range(len(intensity)):
         thres_dur = time.perf_counter() - tstart_thresh
         print("thresholding took %0.2fs with %d attemps"\
               % (thres_dur, att))
-
+            
         blob = fromImgPro.BlobAndSkel()
                    
         X0 = fromImgPro.extCoord()          # extract coordinates
@@ -196,21 +196,28 @@ for frame in range(len(intensity)):
           '\n flagella length (um):', np.round(lenfla[frame],2))
 
 # write blobBin external file as Numpy array
-# blobBin = da.from_array(blobBin)
+blobBin = da.from_array(blobBin)
+blobRaw = da.from_array(blobRaw)
 # da.to_npy_stack(fName[:len(fName)-4] + '-threshold.npy',blobBin)  
 
 #%% Reload movies to check
-checknpy = 0
+checknpy = 1
 makeMov = 0
 if checknpy:
 
-    viewer = napari.Viewer(ndisplay=3)
-    viewer.add_image(intensity, contrast_limits=[0,200],\
-                     scale=[0.115,.115,.115],\
+    viewer = napari.Viewer(ndisplay=3)      
+    viewer.add_image(intensity, contrast_limits=[100,300],\
+                      scale=[0.115,.115,.115],\
                       multiscale=False,colormap='gray',opacity=1)  
-    # viewer.add_image(blobBin, contrast_limits=[0,1],\
-    #                   scale=[0.115,.115,.115],\
-    #                   multiscale=False,colormap='green',opacity=0.5) 
+    viewer.add_image(blobBin, contrast_limits=[0,1],\
+                        scale=[0.115,.115,.115],\
+                        multiscale=False,colormap='green',opacity=0.5)
+    viewer.add_image(blobRaw, contrast_limits=[0,1],\
+                        scale=[0.115,.115,.115],\
+                        multiscale=False,colormap='green',opacity=0.5)
+    # viewer.add_image(blobs, contrast_limits=[0,1],\
+    #                    scale=[0.115,.115,.115],\
+    #                    multiscale=False,colormap='green',opacity=0.5) 
     viewer.scale_bar.visible=True
     viewer.scale_bar.unit='um'
     viewer.scale_bar.position='top_right'
@@ -508,7 +515,7 @@ if plotin3D:
     # ax.quiver(X,Y,Z,Un2,Vn2,Wn2,color='g')
     # ax.quiver(X,Y,Z,Un3,Vn3,Wn3,color='g')
 
-#%% plot the fluctuations
+#%% Plot the fluctuations
 plotFluc = True; flucToPDF = False
 simORreal = False
 if plotFluc:    
@@ -619,7 +626,6 @@ if plotFluc:
     ax06.set_xlabel(r'time [sec]');
     ax06.set_ylabel(r'angle to +z-axis [deg]')
     if flucToPDF: fig06.savefig(r'./PDF/dirAng-z-axis.pdf')
-
 
 #%% Plot projections (XY, XZ, YZ)
 plotin2D = 0
@@ -878,7 +884,6 @@ if computeD:
             ['rotation-fit [rad^2/sec^2]',fitPitch[0][0], fitRoll[0][0], fitYaw[0][0]],\
             ['combo-fit [um.rad/sec^2]',fitCombo[0][0]],\
             ['A, B, D', A[0], B[0], D[0]],\
-            ['A, B, D (adjusted 50% sucrose)', A2[0], B2[0], D2[0]]\
-                ]
+            ['A, B, D (adjusted 50% sucrose)', A2[0], B2[0], D2[0]] ]
     df = pd.DataFrame(data)
     df.to_excel(fName + '.xlsx', index = False, header = False)  

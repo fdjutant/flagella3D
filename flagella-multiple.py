@@ -25,9 +25,9 @@ path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotu
 # path = r"D:\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
 # path = r"/mnt/opm2/20211022_franky/"
 
-# fName = path + "/20211022a_suc40_h15um"
+fName = path + "/20211022a_suc40_h15um"
 # fName = path + "/20211022b_suc40_h30um"
-fName = path + "/20211018a_suc50_h15um"
+# fName = path + "/20211018a_suc50_h15um" # good to go
 # fName = path + "/20211018b_suc50_h30um"
 # fName = path + "/20211022c_suc70_h15um"
 # fName = path + "/20211022d_suc70_h30um" 
@@ -41,18 +41,22 @@ sweep_um = 15
 stepsize_nm = 400
 # vol_exp = 1/ (sweep_um/stepsize_nm * camExposure_ms)
 vol_exp = 1e-3 * camExposure_ms * (sweep_um*1e3/stepsize_nm)  # in sec
-thresvalue_in = 0.8
+thresvalue_in = 0.75
 
 start = time.perf_counter()
 
 #%% Go through every folder
 for j in range(len(images)):
 
-    fileIm = natsorted(glob.glob(images[j] + '/*.npy'))      
-    intensity0 = np.concatenate([np.load(f) for f in fileIm])
-    # intensity0 = da.from_npy_stack(images[j]) # with dask-array
+    # fileIm = natsorted(glob.glob(images[j] + '/*.npy'))      
+    # intensity0 = np.concatenate([np.load(f) for f in fileIm])
+    intensity0 = da.from_npy_stack(images[j]) # with dask-array
     intensity = intensity0[:,:,:,:] 
-    Nframes = intensity.shape[0]
+    if intensity.shape[0] > 300:
+        Nframes = 300
+    else:
+        Nframes = intensity.shape[0]
+    
     
     # Image analysis and curve fitting
     xb = []; xp = []; xp0 = []
@@ -73,20 +77,7 @@ for j in range(len(images)):
         fromImgPro = imProcess.ImPro(intensity[frame],\
                                      thresvalue)
         img = fromImgPro.thresVol()                   # binary image
-        sizes = max(fromImgPro.selectLargest()[0])    # largest body only
         
-        att = 0;
-        if sizes < 900:
-            att = 1
-            while sizes < 900 and att < 20: 
-                thresvalue = thresvalue - 0.025
-                fromImgPro = imProcess.ImPro(intensity[frame],thresvalue)
-                img = fromImgPro.thresVol()                 
-                sizes = max(fromImgPro.selectLargest()[0])
-                att = att + 1
-        print("thresholding took %0.2fs with %d attemps"\
-              % (time.perf_counter() - tstart_thresh, att))
-
         blob = fromImgPro.BlobAndSkel()
                    
         X0 = fromImgPro.extCoord()          # extract coordinates
@@ -146,7 +137,9 @@ for j in range(len(images)):
     # Save threshold coordinates to external file for further review 
     fileName = images[j]
     blobBin = da.from_array(blobBin)
-    da.to_npy_stack(fileName[:len(fileName)-4] + '-threshold.npy',blobBin)      
+    blobRaw = da.from_array(blobRaw)
+    da.to_npy_stack(fileName[:len(fileName)-4] + '-threshold.npy',blobBin)
+    da.to_npy_stack(fileName[:len(fileName)-4] + '-raw.npy',blobRaw)      
 
     # Compute pitch, roll, and yaw 
     n1 = localAxes[:,0]; n2 = localAxes[:,1]; n3 = localAxes[:,2]
