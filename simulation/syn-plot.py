@@ -5,14 +5,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matmatrix import gauss_cdf, gauss_pdf
 import pickle
+from scipy import integrate
 
-fName = "nT10-nSep20-nFrame3000" + ".pkl"
+fName = "nT100-nSep9-nFrame300000" + ".pkl"
 folderName = r"D:/Dropbox (ASU)/Research/DNA-Rotary-Motor/Helical-nanotubes/Light-sheet-OPM/Result-data/synthetic-data/"
 with open(folderName+fName, "rb") as f:
       data_loaded = pickle.load(f)
 
+Dpar = data_loaded["Dpar"]
 Dperp = data_loaded["Dperp"]
-Dpar = 2*Dperp; 
+Dpitch = data_loaded["Dpitch"]
+Droll = data_loaded["Droll"]
+Dyaw = data_loaded["Dyaw"]
+interval = data_loaded["interval"]
 vol_exp = data_loaded["vol_exp"]
 nPoints = data_loaded["nPoints"]
 nDivider = data_loaded["nDivider"]
@@ -43,209 +48,264 @@ MSD_P_traj = data_loaded["MSD_P_traj"]
 MSD_R_traj = data_loaded["MSD_R_traj"]
 MSD_Y_traj = data_loaded["MSD_Y_traj"]
 Ndata_a = data_loaded["Ndata_a"]
-Ndata_b = data_loaded["Ndata_b"]
 fitN_a = data_loaded["fitN_a"]
 fitS_a = data_loaded["fitS_a"]
 fitS2_a = data_loaded["fitS2_a"]
 fitNR_a = data_loaded["fitNR_a"]
-fitN_b = data_loaded["fitN_b"]
-fitS_b = data_loaded["fitS_b"]
-fitS2_b = data_loaded["fitS2_b"]
-fitNR_b = data_loaded["fitNR_b"]
 fitP_a = data_loaded["fitP_a"]
 fitR_a = data_loaded["fitR_a"]
 fitY_a = data_loaded["fitY_a"]
-fitP_b = data_loaded["fitP_b"]
-fitR_b = data_loaded["fitR_b"]
-fitY_b = data_loaded["fitY_b"]
-nSepTotal = cm_traj.shape[1]
 
-#%% Plot diffusion coefficients (translation)
-xaxis = np.arange(1,nSepTotal+1)      
+#%% Plot diffusion coefficients (translation)  
 plt.rcParams.update({'font.size': 15})
 
+# diffusion constant from step size
 fig,ax = plt.subplots(dpi=300, figsize=(14,5))
-ax2 = ax.twiny()
-ax.errorbar(xaxis, np.mean(sigma2_N/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(sigma2_N/(6*vol_exp*xaxis),axis=0),
+dperp_measure = sigma2_S/(2*vol_exp*interval)
+dperp2_measure = sigma2_S2/(2*vol_exp*interval)
+dpar_measure = sigma2_N/(2*vol_exp*interval)
+
+ax.errorbar(interval, np.mean(dpar_measure, axis=0),
+              yerr=np.std(dpar_measure,axis=0),
               color='k', marker="^",alpha=0.5,
               capsize=2, elinewidth = 0.5)
-ax.errorbar(xaxis, np.mean(sigma2_S/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(sigma2_S/(6*vol_exp*xaxis),axis=0),
+ax.errorbar(interval, np.mean(dperp_measure,axis=0),
+              yerr=np.std(dperp_measure,axis=0),
               color='k', marker="s",alpha=0.5,
               capsize=2, elinewidth = 0.5, label='_nolegend_')
-ax.errorbar(xaxis, np.mean(sigma2_S2/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(sigma2_S2/(6*vol_exp*xaxis),axis=0),
+ax.errorbar(interval, np.mean(dperp2_measure, axis=0),
+              yerr=np.std(dperp2_measure,axis=0),
               color='k', marker="o",alpha=0.5,
               capsize=2, elinewidth = 0.5, label='_nolegend_')
-ax.plot(xaxis, np.ones(len(xaxis))*Dpar, 'r')
-ax.plot(xaxis, np.ones(len(xaxis))*Dperp, 'r', label='_nolegend_')
-ax.fill_between(xaxis, Dpar * (np.ones(len(xaxis))-errorTh),\
-                Dpar * (np.ones(len(xaxis))+errorTh), facecolor='r',\
+ax.plot(interval, np.ones(len(interval))*Dpar, 'r')
+ax.plot(interval, np.ones(len(interval))*Dperp, 'r', label='_nolegend_')
+ax.fill_between(interval, Dpar * (np.ones(len(interval))-errorTh),\
+                Dpar * (np.ones(len(interval))+errorTh), facecolor='r',\
                 alpha=0.1, label='_nolegend_')
-ax.fill_between(xaxis, Dperp * (np.ones(len(xaxis))-errorTh),\
-                Dperp * (np.ones(len(xaxis))+errorTh), facecolor='r',\
+ax.fill_between(interval, Dperp * (np.ones(len(interval))-errorTh),\
+                Dperp * (np.ones(len(interval))+errorTh), facecolor='r',\
                 alpha=0.1, label='_nolegend_')
-ax.set_xticks(nDivider);
-ax2.set_xticks(nDivider);
-ax.set_xticklabels(nPoints.astype('int'))
-ax.legend(["Ground-Truth","Step-size"])
-ax2.set_xlabel(r'Sampling rate ratio (full/reduced)');
-ax.set_xlabel(r'Number of frames');
+ax.legend(["Ground-Truth ($\parallel$ & $\perp$)","Step-size"])
+ax.set_xlabel(r'Fitting every ith frame');
 ax.set_ylabel(r'$D [\mu m^2/sec]$') 
-ax2.set_xlim(0.5,20.5)
-ax.set_xlim(0.5,20.5)
+ax.set_title('Diffusion coefficients from step size for ' +
+             '$\Delta t$ = {}ms ({} trajectories)'
+                 .format(vol_exp * 1e3, len(cm_traj)))
+ymax = np.max([np.max(np.mean(dpar_measure, axis=0)),
+               np.max(np.mean(dperp_measure, axis=0)),
+               np.max(np.mean(dperp2_measure, axis=0)),
+               np.max(Dpar * (np.ones(len(interval))+errorTh))]) * 1.1
+ymin = np.min([np.min(np.mean(dpar_measure, axis=0)),
+               np.min(np.mean(dperp_measure, axis=0)),
+               np.min(np.mean(dperp2_measure, axis=0)),
+               np.min(Dperp * (np.ones(len(interval))-errorTh))]) * 0.9 
+ax.set_ylim([ymin, ymax])
+ax.set_xscale('log');
 
+# diffusion constant from MSD[0]
 fig,ax = plt.subplots(dpi=300, figsize=(14,5))
-ax2 = ax.twiny()
-ax.errorbar(xaxis, np.mean(sigma2_N_MSD/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(sigma2_N_MSD/(6*vol_exp*xaxis),axis=0),
+dpar_measure = sigma2_N_MSD/(2*vol_exp*interval)
+dperp_measure = sigma2_S_MSD/(2*vol_exp*interval)
+dperp2_measure = sigma2_S2_MSD/(2*vol_exp*interval)
+
+ax.errorbar(interval, np.mean(dpar_measure, axis=0),
+              yerr=np.std(dpar_measure,axis=0),
               color='C0', marker="^",alpha=0.5,
               capsize=2, elinewidth = 0.5)
-ax.errorbar(xaxis, np.mean(sigma2_S_MSD/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(sigma2_S_MSD/(6*vol_exp*xaxis),axis=0),
+ax.errorbar(interval, np.mean(dperp_measure,axis=0),
+              yerr=np.std(dperp_measure,axis=0),
               color='C0', marker="s",alpha=0.5,
               capsize=2, elinewidth = 0.5, label='_nolegend_')
-ax.errorbar(xaxis, np.mean(sigma2_S2_MSD/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(sigma2_S2_MSD/(6*vol_exp*xaxis),axis=0),
+ax.errorbar(interval, np.mean(dperp2_measure, axis=0),
+              yerr=np.std(dperp2_measure,axis=0),
               color='C0', marker="o",alpha=0.5,
               capsize=2, elinewidth = 0.5, label='_nolegend_')
-ax.plot(xaxis, np.ones(len(xaxis))*Dpar, 'r')
-ax.plot(xaxis, np.ones(len(xaxis))*Dperp, 'r', label='_nolegend_')
-ax.fill_between(xaxis, Dpar * (np.ones(len(xaxis))-errorTh),\
-                Dpar * (np.ones(len(xaxis))+errorTh), facecolor='r',\
+ax.plot(interval, np.ones(len(interval))*Dpar, 'r')
+ax.plot(interval, np.ones(len(interval))*Dperp, 'r', label='_nolegend_')
+ax.fill_between(interval, Dpar * (np.ones(len(interval))-errorTh),\
+                Dpar * (np.ones(len(interval))+errorTh), facecolor='r',\
                 alpha=0.1, label='_nolegend_')
-ax.fill_between(xaxis, Dperp * (np.ones(len(xaxis))-errorTh),\
-                Dperp * (np.ones(len(xaxis))+errorTh), facecolor='r',\
+ax.fill_between(interval, Dperp * (np.ones(len(interval))-errorTh),\
+                Dperp * (np.ones(len(interval))+errorTh), facecolor='r',\
                 alpha=0.1, label='_nolegend_')
-ax.set_xticks(nDivider);
-ax2.set_xticks(nDivider);
-ax.set_xticklabels(nPoints.astype('int'))
-ax.legend(["Ground-Truth","1st-point MSD"])
-ax2.set_xlabel(r'Sampling rate ratio (full/reduced)');
-ax.set_xlabel(r'Number of frames');
+ax.legend(["Ground-Truth ($\parallel$ & $\perp$)","MSD (1^{st} points)"])
+ax.set_xlabel(r'Fitting every ith frame');
 ax.set_ylabel(r'$D [\mu m^2/sec]$') 
-ax2.set_xlim(0.5,20.5)
-ax.set_xlim(0.5,20.5)
+ax.set_title('Diffusion coefficients from MSD[0] for ' +
+             '$\Delta t$ = {}ms ({} trajectories)'
+                 .format(vol_exp * 1e3, len(cm_traj)))
+ymax = np.max([np.max(np.mean(dpar_measure, axis=0)),
+               np.max(np.mean(dperp_measure, axis=0)),
+               np.max(np.mean(dperp2_measure, axis=0)),
+               np.max(Dpar * (np.ones(len(interval))+errorTh))]) * 1.1
+ymin = np.min([np.min(np.mean(dpar_measure, axis=0)),
+               np.min(np.mean(dperp_measure, axis=0)),
+               np.min(np.mean(dperp2_measure, axis=0)),
+               np.min(Dperp * (np.ones(len(interval))-errorTh))]) * 0.9 
+ax.set_ylim([ymin, ymax])
+ax.set_xscale('log');
 
+# diffusion constant from MSD (3 fitting points)
 fig,ax = plt.subplots(dpi=300, figsize=(14,5))
-ax2 = ax.twiny()
-ax.errorbar(xaxis, np.mean(fitN_a/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(fitN_a/(6*vol_exp*xaxis),axis=0),
+dpar_measure = fitN_a/(2*vol_exp*interval)
+dperp_measure = fitS_a/(2*vol_exp*interval)
+dperp2_measure = fitS2_a/(2*vol_exp*interval)
+
+ax.errorbar(interval, np.mean(dpar_measure, axis=0),
+              yerr=np.std(dpar_measure,axis=0),
               color='b', marker="^",alpha=0.5,
               capsize=2, elinewidth = 0.5)
-ax.errorbar(xaxis, np.mean(fitS_a/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(fitS_a/(6*vol_exp*xaxis),axis=0),
+ax.errorbar(interval, np.mean(dperp_measure,axis=0),
+              yerr=np.std(dperp_measure,axis=0),
               color='b', marker="s",alpha=0.5,
               capsize=2, elinewidth = 0.5, label='_nolegend_')
-ax.errorbar(xaxis, np.mean(fitS2_a/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(fitS2_a/(6*vol_exp*xaxis),axis=0),
+ax.errorbar(interval, np.mean(dperp2_measure, axis=0),
+              yerr=np.std(dperp2_measure,axis=0),
               color='b', marker="o",alpha=0.5,
               capsize=2, elinewidth = 0.5, label='_nolegend_')
-ax.plot(xaxis, np.ones(len(xaxis))*Dpar, 'r')
-ax.plot(xaxis, np.ones(len(xaxis))*Dperp, 'r', label='_nolegend_')
-ax.fill_between(xaxis, Dpar * (np.ones(len(xaxis))-errorTh),\
-                Dpar * (np.ones(len(xaxis))+errorTh), facecolor='r',\
+ax.plot(interval, np.ones(len(interval))*Dpar, 'r')
+ax.plot(interval, np.ones(len(interval))*Dperp, 'r', label='_nolegend_')
+ax.fill_between(interval, Dpar * (np.ones(len(interval))-errorTh),\
+                Dpar * (np.ones(len(interval))+errorTh), facecolor='r',\
                 alpha=0.1, label='_nolegend_')
-ax.fill_between(xaxis, Dperp * (np.ones(len(xaxis))-errorTh),\
-                Dperp * (np.ones(len(xaxis))+errorTh), facecolor='r',\
+ax.fill_between(interval, Dperp * (np.ones(len(interval))-errorTh),\
+                Dperp * (np.ones(len(interval))+errorTh), facecolor='r',\
                 alpha=0.1, label='_nolegend_')
-ax.set_xticks(nDivider);
-ax2.set_xticks(nDivider);
-ax.set_xticklabels(nPoints.astype('int'))
-ax.legend(["Ground-Truth",
-           "MSD ("+ str(Ndata_a-1) +" fitting points)"])
-ax2.set_xlabel(r'Sampling rate ratio (full/reduced)');
-ax.set_xlabel(r'Number of frames');
+ax.legend(["Ground-Truth ($\parallel$ & $\perp$)","MSD (3 fitting points)"])
+ax.set_xlabel(r'Fitting every ith frame');
 ax.set_ylabel(r'$D [\mu m^2/sec]$') 
-ax2.set_xlim(0.5,20.5)
-ax.set_xlim(0.5,20.5)
+ax.set_title('Diffusion coefficients from MSD (3 fitting points) for ' +
+             '$\Delta t$ = {}ms ({} trajectories)'
+                 .format(vol_exp * 1e3, len(cm_traj)))
+ymax = np.max([np.max(np.mean(dpar_measure, axis=0)),
+               np.max(np.mean(dperp_measure, axis=0)),
+               np.max(np.mean(dperp2_measure, axis=0)),
+               np.max(Dpar * (np.ones(len(interval))+errorTh))]) * 1.1
+ymin = np.min([np.min(np.mean(dpar_measure, axis=0)),
+               np.min(np.mean(dperp_measure, axis=0)),
+               np.min(np.mean(dperp2_measure, axis=0)),
+               np.min(Dperp * (np.ones(len(interval))-errorTh))]) * 0.9 
+ax.set_ylim([ymin, ymax])
+ax.set_xscale('log');
 
-fig,ax = plt.subplots(dpi=300, figsize=(14,5))
-ax2 = ax.twiny()
-ax.errorbar(xaxis, np.mean(fitN_b/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(fitN_b/(6*vol_exp*xaxis),axis=0),
-              color='g', marker="^",alpha=0.5,
-              capsize=2, elinewidth = 0.5)
-ax.errorbar(xaxis, np.mean(fitS_b/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(fitS_b/(6*vol_exp*xaxis),axis=0),
-              color='g', marker="s",alpha=0.5,
-              capsize=2, elinewidth = 0.5, label='_nolegend_')
-ax.errorbar(xaxis, np.mean(fitS2_b/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(fitS2_b/(6*vol_exp*xaxis),axis=0),
-              color='g', marker="o",alpha=0.5,
-              capsize=2, elinewidth = 0.5, label='_nolegend_')
-ax.plot(xaxis, np.ones(len(xaxis))*Dpar, 'r')
-ax.plot(xaxis, np.ones(len(xaxis))*Dperp, 'r', label='_nolegend_')
-ax.fill_between(xaxis, Dpar * (np.ones(len(xaxis))-errorTh),\
-                Dpar * (np.ones(len(xaxis))+errorTh), facecolor='r',\
-                alpha=0.1, label='_nolegend_')
-ax.fill_between(xaxis, Dperp * (np.ones(len(xaxis))-errorTh),\
-                Dperp * (np.ones(len(xaxis))+errorTh), facecolor='r',\
-                alpha=0.1, label='_nolegend_')
-ax.set_xticks(nDivider);
-ax2.set_xticks(nDivider);
-ax.set_xticklabels(nPoints.astype('int'))
-ax.legend(["Ground-Truth",
-           "MSD ("+ str(Ndata_b-1) +" fitting points)"])
-ax2.set_xlabel(r'Sampling rate ratio (full/reduced)');
-ax.set_xlabel(r'Number of frames');
-ax.set_ylabel(r'$D [\mu m^2/sec]$') 
-ax2.set_xlim(0.5,20.5)
-ax.set_xlim(0.5,20.5)
-
-#%% Plot diffusion coefficients (rotation)
-xaxis = np.arange(1,nSepTotal+1)  
-errorTh1 = np.zeros([nSepTotal])    
-for k in range(len(xaxis)):
-    errorTh1[k-1] = np.sqrt(2/(xaxis.T[k]))
-
-Dpitch = 0.1
+#%% Plot diffusion coefficients (ROLL)  
 plt.rcParams.update({'font.size': 15})
-fig,ax = plt.subplots(dpi=300, figsize=(14,5))
-ax2 = ax.twiny()
-ax.errorbar(xaxis, np.mean(sigma2_P/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(sigma2_P/(6*vol_exp*xaxis),axis=0),
-              color='C0', marker="^",alpha=0.5,
-              capsize=2, elinewidth = 0.5)
-ax.errorbar(xaxis, np.mean(sigma2_Y/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(sigma2_Y/(6*vol_exp*xaxis),axis=0),
-              color='C1', marker="s",alpha=0.5,
-              capsize=2, elinewidth = 0.5)
-ax.plot(xaxis, np.ones(len(xaxis))*0.1, 'r')
-ax.fill_between(xaxis, Dpitch * (np.ones(len(xaxis))-errorTh),\
-                Dpitch * (np.ones(len(xaxis))+errorTh), facecolor='r',\
-                alpha=0.1, label='_nolegend_')
-ax.set_xticks(nDivider);
-ax2.set_xticks(nDivider);
-ax.set_xticklabels(nPoints.astype('int'))
-ax.legend(["Ground truth","Pitch","Yaw"])
-ax2.set_xlabel(r'Sampling rate ratio (full/reduced)');
-ax.set_xlabel(r'Number of frames');
-ax.set_ylabel(r'$D [rad^2/sec]$') 
-ax2.set_xlim(0.5,20.5)
-ax.set_xlim(0.5,20.5)
 
-Droll = 5;
+# diffusion constant from step size
 fig,ax = plt.subplots(dpi=300, figsize=(14,5))
-ax2 = ax.twiny()
-ax.errorbar(xaxis, np.mean(sigma2_R/(6*vol_exp*xaxis),axis=0),
-              yerr=np.std(sigma2_R/(6*vol_exp*xaxis),axis=0),
-              color='C2', marker="^",alpha=0.5,
+droll_measure = sigma2_R/(2*vol_exp*interval)
+
+ax.errorbar(interval, np.mean(droll_measure,axis=0),
+              yerr=np.std(droll_measure,axis=0),
+              color='k', marker="s",alpha=0.5,
               capsize=2, elinewidth = 0.5)
-ax.plot(xaxis, np.ones(len(xaxis))*Droll, 'r')
-ax.fill_between(xaxis, Droll * (np.ones(len(xaxis))-errorTh),\
-                Droll * (np.ones(len(xaxis))+errorTh), facecolor='r',\
+ax.plot(interval, np.ones(len(interval))*Droll, 'r')
+ax.fill_between(interval, Droll * (np.ones(len(interval))-errorTh),\
+                Droll * (np.ones(len(interval))+errorTh),
+                facecolor='r',\
                 alpha=0.1, label='_nolegend_')
-ax.set_xticks(nDivider);
-ax2.set_xticks(nDivider);
-ax.set_xticklabels(nPoints.astype('int'))
-ax.legend(["Ground truth","Roll"])
-ax2.set_xlabel(r'Sampling rate ratio (full/reduced)');
-ax.set_xlabel(r'Number of frames');
+ax.legend(["Ground-Truth (Roll)","Step-size"])
+ax.set_xlabel(r'Fitting every ith frame');
 ax.set_ylabel(r'$D [rad^2/sec]$') 
-ax2.set_xlim(0.5,20.5)
-ax.set_xlim(0.5,20.5)
+ax.set_title('Diffusion coefficients from step size for ' +
+             '$\Delta t$ = {}ms ({} trajectories)'
+                 .format(vol_exp * 1e3, len(cm_traj)))
+ymax = np.max(Droll * (np.ones(len(interval))+errorTh)) * 1.1
+ymin = np.min(Droll * (np.ones(len(interval))-errorTh)) * 0.9 
+ax.set_ylim([ymin, ymax])
+ax.set_xscale('log');
+
+# diffusion constant from MSD (3 fitting points)
+fig,ax = plt.subplots(dpi=300, figsize=(14,5))
+droll_measure = fitR_a/(2*vol_exp*interval)
+
+ax.errorbar(interval, np.mean(droll_measure,axis=0),
+              yerr=np.std(droll_measure,axis=0),
+              color='b', marker="s",alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax.plot(interval, np.ones(len(interval))*Droll, 'r')
+ax.fill_between(interval, Droll * (np.ones(len(interval))-errorTh),\
+                Droll * (np.ones(len(interval))+errorTh),
+                facecolor='r',\
+                alpha=0.1, label='_nolegend_')
+ax.legend(["Ground-Truth (Roll)","MSD (3 fitting points)"])
+ax.set_xlabel(r'Fitting every ith frame');
+ax.set_ylabel(r'$D [rad^2/sec]$') 
+ax.set_title('Diffusion coefficients from MSD (3 fitting points) for ' +
+             '$\Delta t$ = {}ms ({} trajectories)'
+                 .format(vol_exp * 1e3, len(cm_traj)))
+ymax = np.max(Droll * (np.ones(len(interval))+errorTh)) * 1.1
+ymin = np.min(Droll * (np.ones(len(interval))-errorTh)) * 0.9 
+ax.set_ylim([ymin, ymax])
+ax.set_xscale('log');
+
+#%% Plot diffusion coefficients (Pitch & Yaw)  
+plt.rcParams.update({'font.size': 15})
+
+# diffusion constant from step size
+fig,ax = plt.subplots(dpi=300, figsize=(14,5))
+dpitch_measure = sigma2_P/(2*vol_exp*interval)
+dyaw_measure = sigma2_Y/(2*vol_exp*interval)
+
+ax.errorbar(interval, np.mean(dpitch_measure, axis=0),
+              yerr=np.std(dpitch_measure,axis=0),
+              color='k', marker="^",alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax.errorbar(interval, np.mean(dyaw_measure,axis=0),
+              yerr=np.std(dyaw_measure,axis=0),
+              color='k', marker="s",alpha=0.5,
+              capsize=2, elinewidth = 0.5, label='_nolegend_')
+ax.plot(interval, np.ones(len(interval))*Dpitch, 'r')
+ax.plot(interval, np.ones(len(interval))*Dyaw, 'r', label='_nolegend_')
+ax.fill_between(interval, Dpitch * (np.ones(len(interval))-errorTh),\
+                Dpitch * (np.ones(len(interval))+errorTh), facecolor='r',\
+                alpha=0.1, label='_nolegend_')
+ax.fill_between(interval, Dyaw * (np.ones(len(interval))-errorTh),\
+                Dyaw * (np.ones(len(interval))+errorTh), facecolor='r',\
+                alpha=0.1, label='_nolegend_')
+ax.legend(["Ground-Truth (pitch & yaw)","Step-size"])
+ax.set_xlabel(r'Fitting every ith frame');
+ax.set_ylabel(r'$D [\mu m^2/sec]$') 
+ax.set_title('Diffusion coefficients from step size for ' +
+             '$\Delta t$ = {}ms ({} trajectories)'
+                 .format(vol_exp * 1e3, len(cm_traj)))
+ymax = np.max(Dpitch * (np.ones(len(interval))+errorTh)) * 1.1
+ymin = np.min(Dyaw * (np.ones(len(interval))-errorTh)) * 0.9 
+ax.set_ylim([ymin, ymax])
+ax.set_xscale('log');
+
+# diffusion constant from MSD[0]
+fig,ax = plt.subplots(dpi=300, figsize=(14,5))
+dpitch_measure = fitP_a/(2*vol_exp*interval)
+dyaw_measure = fitY_a/(2*vol_exp*interval)
+
+ax.errorbar(interval, np.mean(dpitch_measure, axis=0),
+              yerr=np.std(dpitch_measure,axis=0),
+              color='b', marker="^",alpha=0.5,
+              capsize=2, elinewidth = 0.5)
+ax.errorbar(interval, np.mean(dyaw_measure,axis=0),
+              yerr=np.std(dyaw_measure,axis=0),
+              color='b', marker="s",alpha=0.5,
+              capsize=2, elinewidth = 0.5, label='_nolegend_')
+ax.plot(interval, np.ones(len(interval))*Dpitch, 'r')
+ax.plot(interval, np.ones(len(interval))*Dyaw, 'r', label='_nolegend_')
+ax.fill_between(interval, Dpitch * (np.ones(len(interval))-errorTh),\
+                Dpitch * (np.ones(len(interval))+errorTh), facecolor='r',\
+                alpha=0.1, label='_nolegend_')
+ax.fill_between(interval, Dyaw * (np.ones(len(interval))-errorTh),\
+                Dyaw * (np.ones(len(interval))+errorTh), facecolor='r',\
+                alpha=0.1, label='_nolegend_')
+ax.legend(["Ground-Truth (pitch & yaw)","MSD (3 fitting points)"])
+ax.set_xlabel(r'Fitting every ith frame');
+ax.set_ylabel(r'$D [\mu m^2/sec]$') 
+ax.set_title('Diffusion coefficients from MSD (3 fitting points) for ' +
+             '$\Delta t$ = {}ms ({} trajectories)'
+                 .format(vol_exp * 1e3, len(cm_traj)))
+ymax = np.max(Dpitch * (np.ones(len(interval))+errorTh)) * 1.1
+ymin = np.min(Dyaw * (np.ones(len(interval))-errorTh)) * 0.9 
+ax.set_ylim([ymin, ymax])
+ax.set_xscale('log');
+
 
 #%% Plot fluctuation
 singleTraj = True;
@@ -294,37 +354,12 @@ if singleTraj:
     ax01.set_xlabel(r'$\Delta t$ [sec]');
     ax01.set_ylabel('Angle [rad]') 
     
-
 #%% Plot StepSize
 singleStep = True;
 if singleStep: 
     
     # Choose which trajectory and number of separation
     nT = 1; nSep = 9; 
-    
-    # Combo (parallel x roll) - CDF & PDF
-    xplot = np.linspace(-2.5,2.5,1000, endpoint=False)
-    # y_NR = gauss_cdf(xplot, 1, 0, np.sqrt(sigma2_NR[nT,nSep]))
-    # ypdf_NR = gauss_pdf(xplot, 1, 0, np.sqrt(sigma2_NR[nT,nSep]))
-    
-    plt.rcParams.update({'font.size': 15})
-    fig1,ax1 = plt.subplots(dpi=300, figsize=(6,5))
-    # ax1.plot(xplot, y_NR,'C0', alpha=0.5)
-    ax1.plot(np.sort(NRSS_traj[nT,nSep]),
-              np.linspace(0,1,len(transSS_traj[nT,nSep][:,0]),
-                          endpoint=False),'k',ms=3, alpha=0.5)
-    ax1.set_xlabel(r'Step size [$\mu$m$\times$rad]');
-    ax1.set_ylabel(r'Cumulative Probability')
-    ax1.set_ylim([-0.05, 1.1]); ax1.set_xlim([-2.5, 2.5]); 
-
-    plt.rcParams.update({'font.size': 15})
-    fig1,ax1 = plt.subplots(dpi=300, figsize=(6,5))
-    # ax1.plot(xplot, ypdf_NR,'k', alpha=0.8)
-    ax1.hist(NRSS_traj[nT,nSep], bins='fd',
-             density=True, color='k', alpha=0.3)
-    ax1.set_xlabel(r'Step size [$\mu$m$\times$rad]');
-    ax1.set_xlim([-2.5, 2.5]);
-    ax1.set_ylabel(r'Probability density')
     
     # Rotation - CDF & PDF
     xplot = np.linspace(-2,2,1000, endpoint=False)
@@ -410,7 +445,47 @@ if singleStep:
     ax1.set_ylabel(r'Probability density')
     ax1.set_xlim([-2.5, 2.5]);
     ax1.legend(['parallel','perpendicular-1','perpendicular-2'])
+    
+    
+    # Combo (parallel x roll) - CDF & PDF
+    xplot = np.linspace(-2.5,2.5,1000, endpoint=False)
+    
+    plt.rcParams.update({'font.size': 15})
+    fig1,ax1 = plt.subplots(dpi=300, figsize=(6,5))
+    ax1.plot(np.sort(NRSS_traj[nT,nSep]),
+              np.linspace(0,1,len(transSS_traj[nT,nSep][:,0]),
+                          endpoint=False),'k',ms=3, alpha=0.5)
+    ax1.set_xlabel(r'Step size [$\mu$m$\times$rad]');
+    ax1.set_ylabel(r'Cumulative Probability')
+    ax1.set_ylim([-0.05, 1.1]); ax1.set_xlim([-2.5, 2.5]); 
 
+    sx2 = sigma2_N[nT,nSep]; sy2 = sigma2_R[nT,nSep];
+    zs = np.linspace(0, 2.5, 300)
+    def fn(x, z):
+        return np.exp(-(x-0)**2 / 2/sx2) *\
+               np.exp(-(z-0)**2 / 2/sy2 / x**2)
+    
+    rs = np.zeros(len(zs))
+    for ii in range(len(zs)):
+        rs[ii], unc = integrate.quad(lambda x: fn(x, zs[ii]), -np.inf, np.inf)
+    zs = np.concatenate((-np.flip(zs[1:]), zs))
+    rs = np.concatenate((np.flip(rs[1:]), rs))
+    rs /= np.trapz(rs, zs) # normalize
+    
+    # figh = plt.figure()
+    # plt.title("PDF of product of uncorrelated gaussians
+    # with $\sigma_x$=%0.2f, $\sigma_y$=%0.2f" % (sx, sy))
+    # plt.plot(zs, rs)
+
+    plt.rcParams.update({'font.size': 15})
+    fig1,ax1 = plt.subplots(dpi=300, figsize=(6,5))
+    ax1.plot(zs, rs)
+    ax1.hist(NRSS_traj[nT,nSep], bins='fd',
+             density=True, color='k', alpha=0.3)
+    ax1.set_xlabel(r'Step size [$\mu$m$\times$rad]');
+    ax1.set_xlim([-2.5, 2.5]);
+    ax1.set_ylabel(r'Probability density')
+    
 #%% Plot the MSD
 singleMSD = True
 if singleMSD: 

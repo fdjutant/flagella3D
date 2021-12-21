@@ -1,6 +1,6 @@
 #%% Import modules and files
 import sys
-sys.path.insert(0, '../modules')
+sys.path.insert(0, './modules')
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
