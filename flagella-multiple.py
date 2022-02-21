@@ -57,7 +57,6 @@ for j in range(len(images)):
     else:
         Nframes = intensity.shape[0]
     
-    
     # Image analysis and curve fitting
     xb = []; xp = []; xp0 = []
     blobSkel = []; blobBin =[]; blobSize = []

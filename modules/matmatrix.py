@@ -19,6 +19,36 @@ def gauss_pdf(x, amp, mu, sigma):
     Fx = amp * np.exp(-0.5*(x-mu)**2/sigma**2) / (sigma * np.sqrt(2*np.pi))
     return Fx
 
+def fitCDF_flexible(x, mean, sigma):
+    model = Model(gauss_cdf, prefix='g1_')
+    params = model.make_params()
+    params['g1_amp'].set(1.,vary=False)
+    params['g1_mu'].set(mean)
+    params['g1_sigma'].set(1.)
+    
+    yaxis = np.linspace(0,1,len(x), endpoint=False)
+    xaxis = np.sort(x)
+    result = model.fit(yaxis,params,x=xaxis)
+    amp = result.params['g1_amp'].value
+    mean = result.params['g1_mu'].value
+    sigma = result.params['g1_sigma'].value
+    return amp, mean, sigma
+
+def fitCDF_diff(x):
+    model = Model(gauss_cdf, prefix='g1_')
+    params = model.make_params()
+    params['g1_amp'].set(1.,vary=False)
+    params['g1_mu'].set(2.)
+    params['g1_sigma'].set(1.)
+    
+    yaxis = np.linspace(0,1,len(x), endpoint=False)
+    xaxis = np.sort(x)
+    result = model.fit(yaxis,params,x=xaxis)
+    amp = result.params['g1_amp'].value
+    mean = result.params['g1_mu'].value
+    sigma = result.params['g1_sigma'].value
+    return amp, mean, sigma
+
 def fitCDF(x):
     model = Model(gauss_cdf, prefix='g1_')
     params = model.make_params()
@@ -117,59 +147,55 @@ def retAngles(Mrot):
         
     return angles1, angles2
 
+#%% compute Euler angles from n1, n2, n3
+def EuAngfromN(localAxes):
+    
+    n1 = localAxes[:,0]
+    n2 = localAxes[:,1]
+    n3 = localAxes[:,2]
+    
+    Nframes = len(localAxes)
+    dpitch = np.zeros(Nframes)
+    droll = np.zeros(Nframes)
+    dyaw = np.zeros(Nframes)
+    for frame in range(Nframes-1):
+        dpitch[frame] = np.dot(n2[frame], n1[frame+1] - n1[frame])
+        droll[frame] = np.dot(n3[frame], n2[frame+1] - n2[frame])
+        dyaw[frame] = np.dot(n1[frame], n3[frame+1] - n3[frame])
+    
+    EuAng = np.zeros([Nframes,3])
+    for frame in range(Nframes):
+        EuAng[frame,0] = np.sum(dpitch[0:frame+1])
+        EuAng[frame,1] = np.sum(droll[0:frame+1])
+        EuAng[frame,2] = np.sum(dyaw[0:frame+1])
+    
+    return EuAng
+
 #%% moving average
 def movAverage(x, w):
     return np.convolve(x, np.ones(w), 'valid') / w
 
-#%% find end-points using skeleton
-def endPoints_old(skel,CM1,axes):
+#%% find end-points (https://stackoverflow.com/a/60955825)
+def hullAnalysis(X,axes):
     
-    skelCoord = [];
-    skelCoord = np.argwhere(skel)-CM1
-    disToOrigin = []    # find the longest distance from CM
-    for i in range(len(skelCoord)):
-        disToOrigin.append(np.linalg.norm(skelCoord[i]))
-    disToOrigin = np.array(disToOrigin, dtype=object)
-    
-    # Find the end point in the major axes direction
-    k = 1; lentest = -1;
-    while lentest < 0:
-        endpoint = np.where(disToOrigin == np.sort(disToOrigin)[-k])[0][0]
-        k += 1
-        lentest = np.dot(skelCoord[endpoint],axes[0])
-    
-    return endpoint, skelCoord
-
-#%% find end-points
-def endPoints(X0,CM1,axes):
-    
-    Coord = [];
-    Coord = X0-CM1
-    disToOrigin = []    # find the longest distance from CM
-    for i in range(len(Coord)):
-        disToOrigin.append(np.linalg.norm(Coord[i]))
-    disToOrigin = np.array(disToOrigin, dtype=object)
-    
-    # Find the end point in the major axes direction
-    k = 1; lentest = -1;
-    while lentest < 0:
-        endpoint = np.where(disToOrigin == np.sort(disToOrigin)[-k])[0][0]
-        k += 1
-        lentest = np.dot(Coord[endpoint],axes[0])
-    
-    return endpoint, Coord
-
-#%% measure length (https://stackoverflow.com/a/60955825)
-def flaLength(X0):
-
-    hull = ConvexHull(X0)
-    hullpoints = X0[hull.vertices,:] # Extract the points forming the hull
+    hull = ConvexHull(X)
+    hullpoints = X[hull.vertices,:] # Extract the points forming the hull
     hdist = cdist(hullpoints, hullpoints, metric='euclidean') # finding the best pair
     bestpair = np.unravel_index(hdist.argmax(), hdist.shape)
-
-    thelength = np.linalg.norm([hullpoints[bestpair[0]]-hullpoints[bestpair[1]]])
     
-    return thelength
+    # compute length
+    pxum = 0.115
+    thelength = np.linalg.norm([hullpoints[bestpair[0]]-
+                                hullpoints[bestpair[1]]])*pxum
+    
+    # find end point that is in the direction of n1
+    dotTest = np.dot(hullpoints[bestpair[0]], axes[0])
+    if dotTest > 0:
+        endpoint_Hull = hullpoints[bestpair[0]]
+    else:
+        endpoint_Hull = hullpoints[bestpair[1]]
+        
+    return thelength, endpoint_Hull
 
 #%% find n1 using end point
 def findN1(X0, CM1, axes_ref):
@@ -184,7 +210,7 @@ def findN1(X0, CM1, axes_ref):
         axes = X0[ep] - CM1
     else:
         lentest1 = np.dot( (hullpoints[bestpair[0]][0] - CM1), axes_ref )
-        lentest2 = np.dot( (hullpoints[bestpair[1]][0] - CM1), axes_ref ) 
+        # lentest2 = np.dot( (hullpoints[bestpair[1]][0] - CM1), axes_ref ) 
         if lentest1 > 0:
             ep = np.where( hullpoints[bestpair[0]][0] == X0)[0][0]
             axes = X0[ep] - CM1
@@ -193,6 +219,7 @@ def findN1(X0, CM1, axes_ref):
             axes = X0[ep] - CM1
                     
     return axes, ep
+
 
 #%% phase unwrapping
 def phaseUnwrap(angle):

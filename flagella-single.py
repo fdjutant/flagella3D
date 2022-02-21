@@ -7,20 +7,17 @@ import matplotlib.pyplot as plt
 plt.rcParams['text.usetex'] = True
 plt.rcParams.update({'font.size': 10})
 from sklearn.decomposition import PCA
-from scipy import stats, optimize
-from scipy.ndimage import gaussian_filter
+from scipy import optimize
 import pandas as pd
 import time
 import napari
-from matmatrix import *
-import helixFun
+from matmatrix import flaLength, consistentPCA, endPoints
 import imProcess
 import msd
 from msd import regMSD, trans_stepSize, rot_stepSize
 from lmfit import Model
 from scipy.special import erf
 import movingHx  
-import cv2 
 
 simORreal = False # True: simulation, False: actual data
 if simORreal: # synthetic data
@@ -61,7 +58,7 @@ if simORreal: # synthetic data
     print('--synthetic data creation is completed--')
 else:
     path = r"C:\Users\labuser\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data"
-    fName = path + '/20211018b_suc50_h30um/suc50-h30-12-A.npy'
+    fName = path + '/20211022a_suc40_h15um/suc40-h15-03-A.npy'
     #fName = path + '/20211022d_suc70_h30um/suc70-h30-05-B.npy'
     
     # path = r"D:\Dropbox (ASU)\Research\DNA-Rotary-Motor\Helical-nanotubes\Light-sheet-OPM\Result-data\synthetic-data"

@@ -19,7 +19,7 @@ from msd import regMSD, trans_stepSize, rot_stepSize, trans_stepSize_all
 import movingHx
 
 # time settings in the light sheet
-pxum = 0.115; 
+pxum = 0.115
 camExposure_ms = 2
 sweep_um = 15
 stepsize_nm = 400
@@ -27,7 +27,7 @@ vol_exp = 1e-3 * camExposure_ms * (sweep_um*1e3/stepsize_nm) / 10
 
 # input helix geometry
 length = 8; radius = 0.3; pitchHx = 2.5 # all three in um
-chirality = 1;  # left-handed: 1, right-handed: -1
+chirality = 1   # left-handed: 1, right-handed: -1
 resol = 100     # number of points/resolutions
 
 # input helix motion

@@ -3,14 +3,24 @@ import sys
 sys.path.insert(0, './modules')
 import numpy as np
 import matplotlib.pyplot as plt
+# plt.show()
 from matmatrix import gauss_cdf, gauss_pdf
 import pickle
 from scipy import integrate
+import os.path
 
-fName = "nT100-nSep9-nFrame300000" + ".pkl"
-folderName = r"D:/Dropbox (ASU)/Research/DNA-Rotary-Motor/Helical-nanotubes/Light-sheet-OPM/Result-data/synthetic-data/"
-with open(folderName+fName, "rb") as f:
+fName = "nT100-nSep11-nFrame3000000" + ".pkl"
+
+this_file_dir = os.path.dirname(os.path.abspath('./'))
+path = os.path.join(this_file_dir,
+                'DNA-Rotary-Motor', 'Helical-nanotubes',
+                'Light-sheet-OPM', 'Result-data',
+                'synthetic-data', fName)
+result_dir = os.path.join(os.path.dirname(os.path.dirname(path)),'PDF')
+
+with open(path, "rb") as f:
       data_loaded = pickle.load(f)
+loadTraj = False
 
 Dpar = data_loaded["Dpar"]
 Dperp = data_loaded["Dperp"]
@@ -22,13 +32,6 @@ vol_exp = data_loaded["vol_exp"]
 nPoints = data_loaded["nPoints"]
 nDivider = data_loaded["nDivider"]
 errorTh = data_loaded["errorTh"]
-cm_traj = data_loaded["cm_traj"]
-EuAng_traj = data_loaded["EuAng_traj"]
-localAxes_traj = data_loaded["localAxes_traj"]
-transSS_traj = data_loaded["transSS_traj"]
-rotSS_traj = data_loaded["rotSS_traj"]
-NRSS_traj = data_loaded["NRSS_traj"]
-time_x_traj = data_loaded["time_x_traj"]
 sigma2_N = data_loaded["sigma2_N"]
 sigma2_S = data_loaded["sigma2_S"]
 sigma2_S2 = data_loaded["sigma2_S2"]
@@ -40,13 +43,6 @@ sigma2_NR_MSD = data_loaded["sigma2_NR_MSD"]
 sigma2_P = data_loaded["sigma2_P"]
 sigma2_R = data_loaded["sigma2_R"]
 sigma2_Y = data_loaded["sigma2_Y"]
-MSD_N_traj = data_loaded["MSD_N_traj"]
-MSD_S_traj = data_loaded["MSD_S_traj"]
-MSD_S2_traj = data_loaded["MSD_S2_traj"]
-MSD_NR_traj = data_loaded["MSD_NR_traj"]
-MSD_P_traj = data_loaded["MSD_P_traj"]
-MSD_R_traj = data_loaded["MSD_R_traj"]
-MSD_Y_traj = data_loaded["MSD_Y_traj"]
 Ndata_a = data_loaded["Ndata_a"]
 fitN_a = data_loaded["fitN_a"]
 fitS_a = data_loaded["fitS_a"]
@@ -56,7 +52,22 @@ fitP_a = data_loaded["fitP_a"]
 fitR_a = data_loaded["fitR_a"]
 fitY_a = data_loaded["fitY_a"]
 
-#%% Plot diffusion coefficients (translation)  
+if loadTraj:
+    cm_traj = data_loaded["cm_traj"]
+    EuAng_traj = data_loaded["EuAng_traj"]
+    localAxes_traj = data_loaded["localAxes_traj"]
+    transSS_traj = data_loaded["transSS_traj"]
+    rotSS_traj = data_loaded["rotSS_traj"]
+    NRSS_traj = data_loaded["NRSS_traj"]
+    MSD_N_traj = data_loaded["MSD_N_traj"]
+    MSD_S_traj = data_loaded["MSD_S_traj"]
+    MSD_S2_traj = data_loaded["MSD_S2_traj"]
+    MSD_NR_traj = data_loaded["MSD_NR_traj"]
+    MSD_P_traj = data_loaded["MSD_P_traj"]
+    MSD_R_traj = data_loaded["MSD_R_traj"]
+    MSD_Y_traj = data_loaded["MSD_Y_traj"]
+    
+#%% Plot diffusion coefficients (translation)
 plt.rcParams.update({'font.size': 15})
 
 # diffusion constant from step size
@@ -90,7 +101,7 @@ ax.set_xlabel(r'Fitting every ith frame');
 ax.set_ylabel(r'$D [\mu m^2/sec]$') 
 ax.set_title('Diffusion coefficients from step size for ' +
              '$\Delta t$ = {}ms ({} trajectories)'
-                 .format(vol_exp * 1e3, len(cm_traj)))
+                 .format(vol_exp * 1e3, len(sigma2_N)))
 ymax = np.max([np.max(np.mean(dpar_measure, axis=0)),
                np.max(np.mean(dperp_measure, axis=0)),
                np.max(np.mean(dperp2_measure, axis=0)),
@@ -100,7 +111,8 @@ ymin = np.min([np.min(np.mean(dpar_measure, axis=0)),
                np.min(np.mean(dperp2_measure, axis=0)),
                np.min(Dperp * (np.ones(len(interval))-errorTh))]) * 0.9 
 ax.set_ylim([ymin, ymax])
-ax.set_xscale('log');
+ax.set_xscale('log')
+
 
 # diffusion constant from MSD[0]
 fig,ax = plt.subplots(dpi=300, figsize=(14,5))
@@ -133,7 +145,7 @@ ax.set_xlabel(r'Fitting every ith frame');
 ax.set_ylabel(r'$D [\mu m^2/sec]$') 
 ax.set_title('Diffusion coefficients from MSD[0] for ' +
              '$\Delta t$ = {}ms ({} trajectories)'
-                 .format(vol_exp * 1e3, len(cm_traj)))
+                 .format(vol_exp * 1e3, len(sigma2_N)))
 ymax = np.max([np.max(np.mean(dpar_measure, axis=0)),
                np.max(np.mean(dperp_measure, axis=0)),
                np.max(np.mean(dperp2_measure, axis=0)),
@@ -143,7 +155,7 @@ ymin = np.min([np.min(np.mean(dpar_measure, axis=0)),
                np.min(np.mean(dperp2_measure, axis=0)),
                np.min(Dperp * (np.ones(len(interval))-errorTh))]) * 0.9 
 ax.set_ylim([ymin, ymax])
-ax.set_xscale('log');
+ax.set_xscale('log')
 
 # diffusion constant from MSD (3 fitting points)
 fig,ax = plt.subplots(dpi=300, figsize=(14,5))
@@ -153,15 +165,15 @@ dperp2_measure = fitS2_a/(2*vol_exp*interval)
 
 ax.errorbar(interval, np.mean(dpar_measure, axis=0),
               yerr=np.std(dpar_measure,axis=0),
-              color='b', marker="^",alpha=0.5,
+              color='k', marker="^",alpha=0.5,
               capsize=2, elinewidth = 0.5)
 ax.errorbar(interval, np.mean(dperp_measure,axis=0),
               yerr=np.std(dperp_measure,axis=0),
-              color='b', marker="s",alpha=0.5,
+              color='k', marker="s",alpha=0.5,
               capsize=2, elinewidth = 0.5, label='_nolegend_')
 ax.errorbar(interval, np.mean(dperp2_measure, axis=0),
               yerr=np.std(dperp2_measure,axis=0),
-              color='b', marker="o",alpha=0.5,
+              color='k', marker="o",alpha=0.5,
               capsize=2, elinewidth = 0.5, label='_nolegend_')
 ax.plot(interval, np.ones(len(interval))*Dpar, 'r')
 ax.plot(interval, np.ones(len(interval))*Dperp, 'r', label='_nolegend_')
@@ -171,12 +183,12 @@ ax.fill_between(interval, Dpar * (np.ones(len(interval))-errorTh),\
 ax.fill_between(interval, Dperp * (np.ones(len(interval))-errorTh),\
                 Dperp * (np.ones(len(interval))+errorTh), facecolor='r',\
                 alpha=0.1, label='_nolegend_')
-ax.legend(["Ground-Truth ($\parallel$ & $\perp$)","MSD (3 fitting points)"])
+ax.legend(["Ground-Truth ($\parallel$ & $\perp$)","MSD (2 fitting points)"])
 ax.set_xlabel(r'Fitting every ith frame');
 ax.set_ylabel(r'$D [\mu m^2/sec]$') 
-ax.set_title('Diffusion coefficients from MSD (3 fitting points) for ' +
+ax.set_title('Diffusion coefficients from MSD (2 fitting points) for ' +
              '$\Delta t$ = {}ms ({} trajectories)'
-                 .format(vol_exp * 1e3, len(cm_traj)))
+                 .format(vol_exp * 1e3, len(sigma2_N)))
 ymax = np.max([np.max(np.mean(dpar_measure, axis=0)),
                np.max(np.mean(dperp_measure, axis=0)),
                np.max(np.mean(dperp2_measure, axis=0)),
@@ -185,10 +197,11 @@ ymin = np.min([np.min(np.mean(dpar_measure, axis=0)),
                np.min(np.mean(dperp_measure, axis=0)),
                np.min(np.mean(dperp2_measure, axis=0)),
                np.min(Dperp * (np.ones(len(interval))-errorTh))]) * 0.9 
-ax.set_ylim([ymin, ymax])
-ax.set_xscale('log');
+ax.set_ylim([0.05, ymax])
+ax.set_xscale('log')
+ax.figure.savefig(result_dir + '/syn-D-trans.pdf')
 
-#%% Plot diffusion coefficients (ROLL)  
+#%% Plot diffusion coefficients (ROLL)
 plt.rcParams.update({'font.size': 15})
 
 # diffusion constant from step size
@@ -209,11 +222,11 @@ ax.set_xlabel(r'Fitting every ith frame');
 ax.set_ylabel(r'$D [rad^2/sec]$') 
 ax.set_title('Diffusion coefficients from step size for ' +
              '$\Delta t$ = {}ms ({} trajectories)'
-                 .format(vol_exp * 1e3, len(cm_traj)))
+                 .format(vol_exp * 1e3, len(sigma2_N)))
 ymax = np.max(Droll * (np.ones(len(interval))+errorTh)) * 1.1
 ymin = np.min(Droll * (np.ones(len(interval))-errorTh)) * 0.9 
 ax.set_ylim([ymin, ymax])
-ax.set_xscale('log');
+ax.set_xscale('log')
 
 # diffusion constant from MSD (3 fitting points)
 fig,ax = plt.subplots(dpi=300, figsize=(14,5))
@@ -221,7 +234,7 @@ droll_measure = fitR_a/(2*vol_exp*interval)
 
 ax.errorbar(interval, np.mean(droll_measure,axis=0),
               yerr=np.std(droll_measure,axis=0),
-              color='b', marker="s",alpha=0.5,
+              color='k', marker="s",alpha=0.5,
               capsize=2, elinewidth = 0.5)
 ax.plot(interval, np.ones(len(interval))*Droll, 'r')
 ax.fill_between(interval, Droll * (np.ones(len(interval))-errorTh),\
@@ -233,13 +246,14 @@ ax.set_xlabel(r'Fitting every ith frame');
 ax.set_ylabel(r'$D [rad^2/sec]$') 
 ax.set_title('Diffusion coefficients from MSD (3 fitting points) for ' +
              '$\Delta t$ = {}ms ({} trajectories)'
-                 .format(vol_exp * 1e3, len(cm_traj)))
+                 .format(vol_exp * 1e3, len(sigma2_N)))
 ymax = np.max(Droll * (np.ones(len(interval))+errorTh)) * 1.1
 ymin = np.min(Droll * (np.ones(len(interval))-errorTh)) * 0.9 
-ax.set_ylim([ymin, ymax])
-ax.set_xscale('log');
+ax.set_ylim([0.9, ymax])
+ax.set_xscale('log')
+ax.figure.savefig(result_dir + '/syn-D-rot-longitudinal.pdf')
 
-#%% Plot diffusion coefficients (Pitch & Yaw)  
+#%% Plot diffusion coefficients (Pitch & Yaw)
 plt.rcParams.update({'font.size': 15})
 
 # diffusion constant from step size
@@ -265,14 +279,14 @@ ax.fill_between(interval, Dyaw * (np.ones(len(interval))-errorTh),\
                 alpha=0.1, label='_nolegend_')
 ax.legend(["Ground-Truth (pitch & yaw)","Step-size"])
 ax.set_xlabel(r'Fitting every ith frame');
-ax.set_ylabel(r'$D [\mu m^2/sec]$') 
+ax.set_ylabel(r'$D [rad^2/sec]$') 
 ax.set_title('Diffusion coefficients from step size for ' +
              '$\Delta t$ = {}ms ({} trajectories)'
-                 .format(vol_exp * 1e3, len(cm_traj)))
+                 .format(vol_exp * 1e3, len(sigma2_N)))
 ymax = np.max(Dpitch * (np.ones(len(interval))+errorTh)) * 1.1
 ymin = np.min(Dyaw * (np.ones(len(interval))-errorTh)) * 0.9 
 ax.set_ylim([ymin, ymax])
-ax.set_xscale('log');
+ax.set_xscale('log')
 
 # diffusion constant from MSD[0]
 fig,ax = plt.subplots(dpi=300, figsize=(14,5))
@@ -281,11 +295,11 @@ dyaw_measure = fitY_a/(2*vol_exp*interval)
 
 ax.errorbar(interval, np.mean(dpitch_measure, axis=0),
               yerr=np.std(dpitch_measure,axis=0),
-              color='b', marker="^",alpha=0.5,
+              color='k', marker="^",alpha=0.5,
               capsize=2, elinewidth = 0.5)
 ax.errorbar(interval, np.mean(dyaw_measure,axis=0),
               yerr=np.std(dyaw_measure,axis=0),
-              color='b', marker="s",alpha=0.5,
+              color='k', marker="s",alpha=0.5,
               capsize=2, elinewidth = 0.5, label='_nolegend_')
 ax.plot(interval, np.ones(len(interval))*Dpitch, 'r')
 ax.plot(interval, np.ones(len(interval))*Dyaw, 'r', label='_nolegend_')
@@ -295,26 +309,26 @@ ax.fill_between(interval, Dpitch * (np.ones(len(interval))-errorTh),\
 ax.fill_between(interval, Dyaw * (np.ones(len(interval))-errorTh),\
                 Dyaw * (np.ones(len(interval))+errorTh), facecolor='r',\
                 alpha=0.1, label='_nolegend_')
-ax.legend(["Ground-Truth (pitch & yaw)","MSD (3 fitting points)"])
+ax.legend(["Ground-Truth (pitch & yaw)","MSD (2 fitting points)"])
 ax.set_xlabel(r'Fitting every ith frame');
-ax.set_ylabel(r'$D [\mu m^2/sec]$') 
-ax.set_title('Diffusion coefficients from MSD (3 fitting points) for ' +
+ax.set_ylabel(r'$D [rad^2/sec]$')  
+ax.set_title('Diffusion coefficients from MSD (2 fitting points) for ' +
              '$\Delta t$ = {}ms ({} trajectories)'
-                 .format(vol_exp * 1e3, len(cm_traj)))
+                 .format(vol_exp * 1e3, len(sigma2_N)))
 ymax = np.max(Dpitch * (np.ones(len(interval))+errorTh)) * 1.1
 ymin = np.min(Dyaw * (np.ones(len(interval))-errorTh)) * 0.9 
 ax.set_ylim([ymin, ymax])
-ax.set_xscale('log');
-
+ax.set_xscale('log')
+ax.figure.savefig(result_dir + '/syn-D-rot-transversal.pdf')
 
 #%% Plot fluctuation
-singleTraj = True;
+singleTraj = False;
 if singleTraj: 
     
     # Choose which trajectory and number of separation
     nT = 1; nSep = 2; 
-    x_axis = np.linspace(0,len(cm_traj[nT,nSep][:,0])-1,\
-                         num=len(cm_traj[nT,nSep][:,0]))*vol_exp   
+    x_axis = np.linspace(0,len(sigma2_N[nT,nSep][:,0])-1,\
+                         num=len(sigma2_N[nT,nSep][:,0]))*vol_exp
     
     # plot x, y, z
     plt.rcParams.update({'font.size': 12})

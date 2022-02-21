@@ -168,3 +168,28 @@ for j in range(len(theXLS)):
         ax0.legend(["lengthwise x roll"])
         ax0.figure.savefig(path + '/all-data/suc'+ str(sucPer) +
                            '-MSD/Combo-' + str(j) + '.png')
+        
+#%% Plot all MSD 
+msd_N_all = np.array(msd_N_all);
+msd_S_all = np.array(msd_S_all);
+msd_S2_all = np.array(msd_S2_all);
+
+fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
+for i in range(len(msd_N_all)):
+    ax0.plot(xaxis*exp3D_ms,msd_N_all[i],alpha=0.5)   
+ax0.set_title("Lengthwise ("+ sucPer + "% sucrose)")
+# ax0.set_xscale('log'); ax0.set_yscale('log'); 
+ax0.set_xlabel(r'Number of separation');
+ax0.set_ylabel(r'MSD [$\mu m^2$/sec]')
+ax0.set_ylim([0, 2.5]);
+ax0.set_xlim([0, nInterval*exp3D_ms])
+
+fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
+for i in range(len(msd_S_all)):
+    ax0.plot(xaxis*exp3D_ms,0.5*(msd_S_all[i]+msd_S2_all[i]),alpha=0.5)   
+ax0.set_title("Sidewise ("+ sucPer + "% sucrose)")
+# ax0.set_xscale('log'); ax0.set_yscale('log'); 
+ax0.set_xlabel(r'Number of separation');
+ax0.set_ylabel(r'MSD [$\mu m^2$/sec]')
+ax0.set_ylim([0, 2.5]);
+ax0.set_xlim([0, nInterval*exp3D_ms])
