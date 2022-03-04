@@ -1,5 +1,4 @@
 import numpy as np
-import numba
 from numba import jit
 
 #%% Namba
@@ -26,11 +25,6 @@ def trans_stepSize_Namba(cm, n1, n2, n3):
         stepSize2.append(n3[i,0]*deltaXYZ[0] + 
                          n3[i,1]*deltaXYZ[1] +
                          n3[i,2]*deltaXYZ[2]) # perp2
-        
-        # convert to numpy
-        # stepSize0 = np.array(stepSize0)
-        # stepSize1 = np.array(stepSize1)
-        # stepSize2 = np.array(stepSize2)
         
     return stepSize0, stepSize1, stepSize2
 
