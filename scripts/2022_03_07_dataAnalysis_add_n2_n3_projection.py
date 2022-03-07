@@ -46,8 +46,10 @@ r_coms = np.zeros((nt, 3))
 flagella_len = np.zeros(nt)
 radial_dist_pt = np.zeros(nt)
 
-# for frame in range(nt):
-for frame in range(0,1):
+for frame in range(nt):
+# for frame in range(0,1):
+    
+    print('frame:', frame)
     
     # ###############
     # threshold image
@@ -117,27 +119,38 @@ for frame in range(0,1):
     # ##############################################################
     # pca = PCA(n_components=3)
     coords = X0 - CM1 # shift all the coordinates into origin
-    pca = PCA(n_components=1)
+    pca = PCA(n_components=3)
     pca.fit(coords)
     n1s[frame] = pca.components_[0]
+    n2s[frame] = pca.components_[1]
+    n3s[frame] = pca.components_[2]
 
     # choose the sign of current n1 so it is as close as possible to n1 at the previous timestep
     if frame > 0 and np.linalg.norm(n1s[frame] - n1s[frame -1]) > np.linalg.norm(n1s[frame] + n1s[frame - 1]):
         n1s[frame] = -n1s[frame]
+        n2s[frame] = -n2s[frame]
+        n3s[frame] = -n3s[frame]
         
-    # rotate to the principal axes
-    pca3d = PCA(n_components=3)
-    pca3d.fit(coords)
-    axes = pca3d.components_
-    P0 = np.matmul(axes,coords.T).T
-    xp.append(P0)  
+    # #####################################
+    # rotate flagella on the principal axes
+    # #####################################
+    dist_projected_along_n1 = n1s[frame, 0] * coords[:, 0] +\
+                              n1s[frame, 1] * coords[:, 1] +\
+                              n1s[frame, 2] * coords[:, 2]
+    dist_projected_along_n2 = n2s[frame, 0] * coords[:, 0] +\
+                              n2s[frame, 1] * coords[:, 1] +\
+                              n2s[frame, 2] * coords[:, 2]
+    dist_projected_along_n3 = n3s[frame, 0] * coords[:, 0] +\
+                              n3s[frame, 1] * coords[:, 1] +\
+                              n3s[frame, 2] * coords[:, 2]
+    coord_on_principal = np.stack([dist_projected_along_n1,
+                                   dist_projected_along_n2,
+                                   dist_projected_along_n3],axis=1)
+    xp.append(coord_on_principal)
 
     # ##########################################
     # determine the flagella length along the n1
     # ##########################################
-    dist_projected_along_n1 = n1s[frame, 0] * coords[:, 0] +\
-                              n1s[frame, 1] * coords[:, 1] +\
-                              n1s[frame, 2] * coords[:, 2]
     flagella_len[frame] = np.max(dist_projected_along_n1) - np.min(dist_projected_along_n1)
 
     # ##########################################
@@ -181,6 +194,14 @@ for frame in range(nt):
     EuAng[frame,0] = np.sum(dpitch[0:frame+1])
     EuAng[frame,1] = np.sum(droll[0:frame+1])
     EuAng[frame,2] = np.sum(dyaw[0:frame+1])
+    
+disp_pitch = np.diff(EuAng[:,0])
+disp_roll = np.diff(EuAng[:,1])
+disp_yaw = np.diff(EuAng[:,2])
+
+disp_Ang = np.stack([disp_pitch,disp_roll,disp_yaw],axis=1)
+firstone = np.array([[0,0,0]])
+disp_Ang = np.vstack([firstone, disp_Ang])
 
 # compute translation displacement
 disp_n1 = []; disp_n2 = []; disp_n3 =[];
@@ -205,33 +226,39 @@ for i in range(nt-1):
 disp_n1 = np.array(disp_n1)
 disp_n2 = np.array(disp_n2)
 disp_n3 = np.array(disp_n3)
+
 disp = np.stack([disp_n1,disp_n2,disp_n3],axis=1)
+firstone = np.array([[0,0,0]])
+disp= np.vstack([firstone,disp])
 
 print('Length [um] = %.2f with std = %.2f' %(np.mean(flagella_len)*0.115,np.std(flagella_len)*0.115))
 print(nt)
 
 #%% Plot the coordinate points
-# for frame in range(len(blobBin)):
-for frame in range(0,1):
+for frame in range(len(blobBin)):
+# for frame in range(0,1):
         
     xb0 = xb[frame] - cm[frame]
     xp0 = xp[frame]
 
-    fig = plt.figure(dpi=150, figsize = (7, 6))
+    fig = plt.figure(dpi=150, figsize = (10, 6))
     fig.suptitle('data: %s\n' %os.path.basename(thresholdFiles[0]) +
                   'frame-num = ' + str(frame).zfill(3) + ', '
-                  'length = %.3f $\mu$m\n' %np.round(flagella_len[frame],3) +
+                  'length = %.3f $\mu$m' %np.round(flagella_len[frame]*pxum,3) + ','
+                  'radius = %.3f $\mu$m\n' %np.round(radial_dist_pt[frame]*pxum,3) +
                    '$\Delta_\parallel$ = %.3f $\mu$m, ' %np.round(disp[frame,0],3) +
                    '$\Delta_{\perp 1}$ = %.3f $\mu$m, ' %np.round(disp[frame,1],3) +
                    '$\Delta_{\perp 2}$ = %.3f $\mu$m\n' %np.round(disp[frame,2],3) +
-                  '$\Delta_\psi$ = %.3f rad, ' %np.round(EuAng[frame,1],3) +
-                  '$\Delta_\gamma$ = %.3f rad, ' %np.round(EuAng[frame,0],3) +
-                  '$\Delta_\phi$ = %.3f rad\n' %np.round(EuAng[frame,2],3)
+                  '$\Delta_\psi$ = %.3f rad, ' %np.round(disp_Ang[frame,1],3) +
+                  '$\Delta_\gamma$ = %.3f rad, ' %np.round(disp_Ang[frame,0],3) +
+                  '$\Delta_\phi$ = %.3f rad\n' %np.round(disp_Ang[frame,2],3)
                   )
-    ax0 = fig.add_subplot(221,projection='3d')
-    ax2 = fig.add_subplot(222,projection='3d')
-    ax3 = fig.add_subplot(223,projection='3d')
-    ax4 = fig.add_subplot(224,projection='3d')
+    ax0 = fig.add_subplot(231,projection='3d')
+    ax2 = fig.add_subplot(232,projection='3d')
+    ax3 = fig.add_subplot(235,projection='3d')
+    ax4 = fig.add_subplot(234,projection='3d')
+    ax5 = fig.add_subplot(233,projection='3d')
+    ax6 = fig.add_subplot(236,projection='3d')
     pxum = 0.115
 
     ## plot 1
@@ -247,8 +274,6 @@ for frame in range(0,1):
     ax0.set_zlabel(r'z [$\mu m$]')
     ax0.scatter(xb0[:,0]*pxum, xb0[:,1]*pxum,\
                 xb0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
-    ax0.scatter(xp0[:,0]*pxum, xp0[:,1]*pxum,\
-                xp0[:,2]*pxum, c = 'C1',alpha=0.1, s=10)
     # ax0.scatter(endpt[frame,0]*pxum,\
     #             endpt[frame,1]*pxum,\
     #             endpt[frame,2]*pxum, c = 'r', alpha=0.5, s=50) 
@@ -270,12 +295,11 @@ for frame in range(0,1):
     ax2.set_xlim(-edgePoint*pxum,edgePoint*pxum)
     ax2.set_zlim(-edgePoint*pxum,edgePoint*pxum)
     ax2.view_init(elev=0, azim=90)
-    ax2.set_xlabel(r'x [$\mu m$]'); ax2.set_ylabel(r'y [$\mu m$]')
+    ax2.set_xlabel(r'x [$\mu m$]')
+    ax2.set_yticks([])
     ax2.set_zlabel(r'z [$\mu m$]')
     ax2.scatter(xb0[:,0]*pxum, xb0[:,1]*pxum,\
                 xb0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
-    ax2.scatter(xp0[:,0]*pxum, xp0[:,1]*pxum,\
-                xp0[:,2]*pxum, c = 'C1',alpha=0.1, s=10)
     # ax2.scatter(endpt[frame,0]*pxum,\
     #             endpt[frame,1]*pxum,\
     #             endpt[frame,2]*pxum, c = 'r', alpha=0.5, s=50) 
@@ -297,12 +321,11 @@ for frame in range(0,1):
     ax3.set_xlim(-edgePoint*pxum,edgePoint*pxum)
     ax3.set_zlim(-edgePoint*pxum,edgePoint*pxum)
     ax3.view_init(elev=0, azim=0)
-    ax3.set_xlabel(r'x [$\mu m$]'); ax3.set_ylabel(r'y [$\mu m$]')
+    ax3.set_xticks([])
+    ax3.set_ylabel(r'y [$\mu m$]')
     ax3.set_zlabel(r'z [$\mu m$]')
     ax3.scatter(xb0[:,0]*pxum, xb0[:,1]*pxum,\
                 xb0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
-    ax3.scatter(xp0[:,0]*pxum, xp0[:,1]*pxum,\
-                xp0[:,2]*pxum, c = 'C1',alpha=0.1, s=10)
     # ax3.scatter(endpt[frame,0]*pxum,\
     #            endpt[frame,1]*pxum,\
     #            endpt[frame,2]*pxum, c = 'r', alpha=0.5, s=50) 
@@ -324,12 +347,11 @@ for frame in range(0,1):
     ax4.set_xlim(-edgePoint*pxum,edgePoint*pxum)
     ax4.set_zlim(-edgePoint*pxum,edgePoint*pxum)
     ax4.view_init(elev=90, azim=0)
-    ax4.set_xlabel(r'x [$\mu m$]'); ax4.set_ylabel(r'y [$\mu m$]')
-    ax4.set_zlabel(r'z [$\mu m$]')
+    ax4.set_xlabel(r'x [$\mu m$]')
+    ax4.set_ylabel(r'y [$\mu m$]')
+    ax4.set_zticks([])
     ax4.scatter(xb0[:,0]*pxum, xb0[:,1]*pxum,\
                 xb0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
-    ax4.scatter(xp0[:,0]*pxum, xp0[:,1]*pxum,\
-                xp0[:,2]*pxum, c = 'C1',alpha=0.1, s=10)
     # ax4.scatter(endpt[frame,0]*pxum,\
     #            endpt[frame,1]*pxum,\
     #            endpt[frame,2]*pxum, c = 'r', alpha=0.5, s=50) 
@@ -341,8 +363,46 @@ for frame in range(0,1):
     ax4.quiver(X,Y,Z,Un1,Vn1,Wn1,color='r')
     ax4.quiver(X,Y,Z,Un2,Vn2,Wn2,color='g')
     ax4.quiver(X,Y,Z,Un3,Vn3,Wn3,color='b')
-    #ax4.figure.savefig(os.path.join(savingFolder, ThName + '-' + 
+    
+    ## plot 5
+    x, y, z = np.array([[-40,0,0],[0,-40,0],[0,0,-40]])*pxum
+    u, v, w = np.array([[60,0,0],[0,60,0],[0,0,60]])*pxum
+    ax5.quiver(x,y,z,u,v,w,arrow_length_ratio=0.1, color="black")
+    edgePoint = 40
+    ax5.set_ylim(-edgePoint*pxum,edgePoint*pxum)
+    ax5.set_xlim(-edgePoint*pxum,edgePoint*pxum)
+    ax5.set_zlim(-edgePoint*pxum,edgePoint*pxum)
+    ax5.view_init(elev=0, azim=90)
+    ax5.set_xlabel(r'x [$\mu m$]')
+    ax5.set_yticks([])
+    ax5.set_zlabel(r'z [$\mu m$]')
+    ax5.scatter(xp0[:,0]*pxum, xp0[:,1]*pxum,\
+                xp0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
+    #ax5.figure.savefig(os.path.join(savingFolder, ThName + '-' + 
     #                                str(frame).zfill(3) + '.png'))
+    
+    ## plot 6
+    x, y, z = np.array([[-40,0,0],[0,-40,0],[0,0,-40]])*pxum
+    u, v, w = np.array([[60,0,0],[0,60,0],[0,0,60]])*pxum
+    ax6.quiver(x,y,z,u,v,w,arrow_length_ratio=0.1, color="black")
+    edgePoint = 40
+    ax6.set_ylim(-edgePoint*pxum,edgePoint*pxum)
+    ax6.set_xlim(-edgePoint*pxum,edgePoint*pxum)
+    ax6.set_zlim(-edgePoint*pxum,edgePoint*pxum)
+    ax6.view_init(elev=90, azim=0)
+    ax6.set_xlabel(r'x [$\mu m$]')
+    ax6.set_ylabel(r'y [$\mu m$]')
+    ax6.set_zticks([])
+    ax6.scatter(xp0[:,0]*pxum, xp0[:,1]*pxum,\
+                xp0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
+    
+    
+    # save to folder
+    savingSnapshots = os.path.join(thresholdFiles[0], 'snapshots')
+    if os.path.isdir(savingSnapshots) != True:
+        os.mkdir(savingSnapshots) # create path if non-existent
+    ax6.figure.savefig(os.path.join(savingSnapshots, 
+                                    str(frame).zfill(3) + '.png'))
 
 #%% Perform vector analysis & MSD
 # initialize msd
