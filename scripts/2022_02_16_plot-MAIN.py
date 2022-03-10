@@ -43,7 +43,8 @@ msd70_P = []; msd70_R = []; msd70_Y = []; msd70_CM = []
 msd50_P = []; msd50_R = []; msd50_Y = []; msd50_CM = []
 msd40_P = []; msd40_R = []; msd40_Y = []; msd40_CM = []
 
-this_file_dir = os.path.dirname(os.path.abspath('./'))
+this_file_dir = os.path.join(os.path.dirname(os.path.abspath("./")),
+                            'Dropbox (ASU)','Research')
 path = os.path.join(this_file_dir,
                 'DNA-Rotary-Motor', 'Helical-nanotubes',
                 'Light-sheet-OPM', 'Result-data',
@@ -774,7 +775,6 @@ ax0.set_xlim([0, nInterval*exp3D_ms])
 ax0.legend(["longitudinal (roll)","transverse (pitch & yaw)"])
 ax0.figure.savefig(result_dir + '/single-MSD-rot.pdf')  
 
-#%% Write all to CSV
 #%% Write to CSV
 # MSD
 for i in range(len(msd70_N)):
@@ -783,7 +783,8 @@ for i in range(len(msd70_N)):
                           msd70_R[i], 0.5*(msd70_P[i]+msd70_Y[i]),
                           msd70_NR[i]]).T
     fmt = ",".join(["%s"] + ["%10.6e"] * (MSD_70suc.shape[1]-1))
-    np.savetxt(result_dir_csv + "/MSD/MSD-70suc-" +str(i).zfill(2) + ".csv",
+    # np.savetxt(result_dir_csv + "/MSD/MSD-70suc-" +str(i).zfill(2) + ".csv",
+    np.savetxt(result_dir_csv + "test" + ".csv",
                MSD_70suc, fmt=fmt,
                header="lag time [sec], MSD-longitudinal [um^2]," +
                       "MSD-transversal [um^2],"+
