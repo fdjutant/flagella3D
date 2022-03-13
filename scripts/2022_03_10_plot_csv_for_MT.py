@@ -76,8 +76,7 @@ for i in range(len(MSD_par)):
 
 # for diffusion coefficients
 
-#%% Translation, rotation, and combo diffusion
-# Error bar 
+#%% Translation diffusion coefficients with error bar
 mean_N = np.mean(Dpar)
 std_N = np.std(Dpar)
 mean_S = np.mean(Dperp)
@@ -107,7 +106,7 @@ ax.set_ylabel(r'$D_\parallel$ or $D_\perp$ [$\mu m^2$/sec]')
 ax.set_xlabel(r'%(w/w) sucrose concentration')
 ax.set_ylim([0, 0.05])
 plt.show()
-ax.figure.savefig(saveFolder + '/D-trans.pdf')
+# ax.figure.savefig(saveFolder + '/D-trans.pdf')
 
 # # Compute T-test & Kruskal-Wallis
 # t40, p40 = stats.ttest_ind(Dt40[:,0],Dt40[:,1]) 
@@ -120,3 +119,23 @@ ax.figure.savefig(saveFolder + '/D-trans.pdf')
 #                          Dt70[:,0],Dt70[:,1]) 
 # print('t, p for kruskal-Wallis',tKW, pKW)
 
+#%% Length versus diffusion coefficient
+length_diff = np.stack([flagella_length_mean, Dpar, Dperp]).T
+length_diff_sorted = length_diff[length_diff[:,0].argsort()] 
+
+plt.figure(dpi=300, figsize=(10,6.2))
+plt.rcParams.update({'font.size': 22})
+# plt.plot(length_diff_sorted[:,0],
+#          length_diff_sorted[:,1], 'C0o', mfc='None',
+#          ms=15, mew=1.5, label='_nolegend_')
+# plt.plot(length_diff_sorted[:,0],
+#           length_diff_sorted[:,2], 'C1o', mfc='None',
+#           ms=15, mew=1.5, label='_nolegend_')
+plt.plot(length_diff_sorted[:,0],
+         (1/3)*length_diff_sorted[:,1]+(1/3)*length_diff_sorted[:,2], 'C2o', mfc='None',
+          ms=15, mew=1.5, label='_nolegend_')
+plt.xlabel(r'$Length$ [$\mu$m]')
+plt.ylabel(r'$D_\parallel$ or $D_\perp$ [$\mu m^2$/sec]')
+# plt.grid(True, which='both')
+# plt.xlim([-1.5,1.5])
+# plt.ylim([-1.5,1.5])
