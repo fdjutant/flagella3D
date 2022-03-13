@@ -1,2 +1,2 @@
 # this is a comment
-From frame 0 to frame 200 shift time by 399
+From frame 0 to frame 200 shift time by 349

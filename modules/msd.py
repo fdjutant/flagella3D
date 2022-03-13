@@ -91,13 +91,13 @@ def regMSD_Namba(Nframes, cm, vol_exp, nInterval):
     MSD = np.zeros(nInterval)
     
     j = 1;
-    while j < nInterval:
+    while j < nInterval+1:
         temp =[];
         i = 0;
         while i + j <= Nframes-1:
             temp.append((cm[i+j] - cm[i])**2)
             i += 1
-        MSD[j] = np.mean(np.array(temp))
+        MSD[j-1] = np.mean(np.array(temp))
         j += 1
         
     return MSD

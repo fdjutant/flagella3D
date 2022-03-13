@@ -30,11 +30,11 @@ pxum = 0.115
 # search_dir = Path(r"\\10.206.26.21\opm2\franky-sample-images")
 
 setName = 'suc90_25um_3ms'
-dataName = 'timelapse_2022_03_06-01_52_30' # A and B
+# dataName = 'timelapse_2022_03_06-01_52_30' # A and B
 # dataName = 'timelapse_2022_03_06-02_16_09' # A and B and C
 # dataName = 'timelapse_2022_03_06-01_57_50' # A 
 # dataName = 'timelapse_2022_03_06-02_10_48' # A 
-# dataName = 'timelapse_2022_03_06-02_22_46' # A and B
+dataName = 'timelapse_2022_03_06-02_22_46' # A and B
 
 this_file_dir = os.path.join(os.path.dirname(os.path.abspath("./")),
                             'Dropbox (ASU)','Research')
@@ -77,11 +77,11 @@ for frame in range(nt):
     img_now = np.array(imgs[frame])
 
     # median filter image
-    img_now_med = scipy.signal.medfilt(img_now, kernel_size=(3,3,3))
-    img_now_med = img_now
+    # img_now_med = scipy.signal.medfilt(img_now, kernel_size=(3,3,3))
+    # img_now_med = img_now
 
     # threshold image
-    img_thresh_med = img_now > 0.3 * np.max(img_now_med)
+    img_thresh_med = img_now > 0.2 * np.max(img_now)
     
     # #############################################
     # pick cluster closest to the previous position
@@ -186,12 +186,12 @@ for frame in range(nt):
     radial_dist_pt[frame] = np.linalg.norm(coord_pt_proj)
 
     # generate n2 from this
-    n2s[frame] = coord_pt_proj / np.linalg.norm(coord_pt_proj)
+    # n2s[frame] = coord_pt_proj / np.linalg.norm(coord_pt_proj)
 
-    assert n1s[frame].dot(n2s[frame]) < 1e-12
+    # assert n1s[frame].dot(n2s[frame]) < 1e-12
 
     # generate n3 such that coordinate system is right-handed
-    n3s[frame] = np.cross(n1s[frame], n2s[frame])
+    # n3s[frame] = np.cross(n1s[frame], n2s[frame])
         
 # convert to dask array
 blobBin = np.array(blobBin)
@@ -263,7 +263,6 @@ viewer.add_image(blobBin, contrast_limits=[0,1],\
                     multiscale=False,colormap='green',opacity=0.5)
 viewer.scale_bar.visible=True
 viewer.scale_bar.unit='um'
-viewer.scale_bar.position='top_right'
 viewer.axes.visible = True
 napari.run()
 
@@ -347,14 +346,15 @@ data = {"lengthMean": np.mean(flagella_len)*pxum,
         "lengthSTD": np.std(flagella_len)*pxum,
         "Dpar": fit_N/(2*exp3D_ms),
         "Dperp": fit_S2/(2*exp3D_ms),
-        "Drot": fit_PY/(2*exp3D_ms),
+        "Drot": fit_P/(2*exp3D_ms),
         "MSD_par": MSD_N,
         "MSD_perp": MSD_S2,
         # "MSD_perp": (MSD_S1 + MSD_S2)*0.5,
-        "MSD_rot": 0.5*(MSD_P + MSD_Y),
+        # "MSD_rot": 0.5*(MSD_P + MSD_Y),
+        "MSD_rot": MSD_P,
         "exp3D_ms": exp3D_ms}
-# with open(savingPKL + '-result.pkl', "wb") as f:
-#       pickle.dump(data, f)
+with open(savingPKL + '-result.pkl', "wb") as f:
+      pickle.dump(data, f)
 
 #%% save movie  
 savingPKL = os.path.dirname(whichFiles) + os.path.basename(whichFiles)[-6:-4] 
