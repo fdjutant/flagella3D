@@ -66,12 +66,10 @@ max_thresh_iterations = 10
 min_thresh_size_diff = 100
 thresh_value = 0.8
 thresh_max_start = 0.9
-thresh_min_start = 0.7
+thresh_min_start = 0.6
 
 tstart = time.perf_counter()
-for frame in range(nt):
-    
-    #print('frame:', frame)
+for frame in range(160,180):
     
     # grab current image
     img_now = np.array(imgs[frame])
@@ -167,7 +165,8 @@ plt.figure(dpi=600, figsize=(10,7))
 plt.plot(thresh_size)
 plt.xlabel('frame-num')
 plt.ylabel('threshold array size')
-plt.ylim([0,4100])
+plt.ylim([0,2500])
+# plt.xlim([150,200])
 
 #%% Perform vector analysis & MSD
 # initialize msd
