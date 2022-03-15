@@ -17,6 +17,7 @@ from scipy import optimize
 import cv2 
 import os.path
 import pickle
+import time
 
 # time settings in the light sheet
 pxum = 0.115
@@ -58,99 +59,87 @@ r_coms = np.zeros((nt, 3))
 flagella_len = np.zeros(nt)
 radial_dist_pt = np.zeros(nt)
 thresh_size = np.zeros(nt)
+threshold = np.zeros(nt)
+num_iterations = np.zeros(nt)
+# starting threshold guess as fraction of maximum pixel value
+max_thresh_iterations = 10
+min_thresh_size_diff = 100
+thresh_value = 0.8
+thresh_max_start = 0.9
+thresh_min_start = 0.7
 
+tstart = time.perf_counter()
 for frame in range(nt):
-# for frame in range(0,2):
     
-    print('frame:', frame)
-    
-    # ###############
-    # threshold image
-    # ###############
+    #print('frame:', frame)
     
     # grab current image
     img_now = np.array(imgs[frame])
 
     # median filter image
     img_now_med = scipy.signal.medfilt(img_now, kernel_size=(3,3,3))
-    # img_now_med = img_now
-
-    # #############################################
-    # pick cluster with the biggest size
-    # #############################################
-    
-    # close holes
-    # kernel = np.ones((30,30), np.uint8)
-    # blobs = cv2.morphologyEx(np.uint8(blobs), cv2.MORPH_CLOSE, kernel)
-
-    # pick the largest for the first one
-    if frame == 0:
-        # threshold intensity image
-        thresh_value = 0.8
-        img_thresh_med = img_now_med > thresh_value * np.max(img_now_med)
         
-        # label and measure every clusters
-        blobs = measure.label(img_thresh_med, background=0)
-        labels = np.unique(blobs.ravel())[1:] # produce label numbers/tags
-        sizes = np.array([np.argwhere(blobs==l).shape[0] for l in labels])
-        thresh_size[frame] = max(sizes)
-
-        # keep only the largest cluster        
-        keep = labels[np.argwhere((sizes == max(sizes)))[0]]
-        blob = blobs == keep
-    else:
+    # iteratively threshold using binary search
+    thresh_max = thresh_max_start
+    thresh_min = thresh_min_start
+    thresh_value_temp = thresh_value
+    for ii in range(max_thresh_iterations):
+        if ii > 0:
+            thresh_constraint = thresh_size[0] - thresh_size_temp
+            
+            # todo: investigate case where bounces back and forth between
+            # two values the whole time... probably related to thresholding
+            # integer data
+            
+            # if constrain was met, break out of loop
+            if np.abs(thresh_constraint) < min_thresh_size_diff:
+                break
+            
+            if thresh_constraint > 0:
+                
+                # if not enough thresholded points, decrease threshold
+                # since thres_value_temp is too high a threshold, update thresh_max
+                thresh_max = thresh_value_temp
+                
+                # new threshold value guess
+                thresh_value_temp = 0.5 * (thresh_value_temp + thresh_min)
+                
+            else:
+                
+                # if too many thresholded points, increase threshold
+                # since thresh_value_temp is too low, update thresh_min
+                thresh_min = thresh_value_temp
+                thresh_value_temp = 0.5 * (thresh_value_temp + thresh_max)
+        
         # threshold intensity image with the default value
-        thresh_value = 0.8
-        img_thresh_med = img_now_med > thresh_value * np.max(img_now_med)
+        img_thresh_med = img_now_med > thresh_value_temp * np.max(img_now_med)
         
         # label and measure every clusters
         blobs = measure.label(img_thresh_med, background=0)
-        labels = np.unique(blobs.ravel())[1:] # produce label numbers/tags
-        sizes = np.array([np.argwhere(blobs==l).shape[0] for l in labels])
-        thresh_size_attempt = max(sizes)
+        labels = np.arange(1, blobs.max() + 1, dtype=int)
+        sizes = np.array([np.sum(blobs == l) for l in labels])
         
-        # keep only the largest cluster   
-        keep = labels[np.argwhere((sizes == max(sizes)))[0]]
-        blob = blobs == keep    
+        # keep only the largest cluster  
+        max_ind = np.argmax(sizes)
+        thresh_size_temp = sizes[max_ind]
+        
+        # mask showing which pixels ae in largest cluster
+        blob = blobs == labels[max_ind]
+    
+        # print iteration number 
+        print('frame = %d, iteration = %d, # thresholded pixels = %d, threshold = %.6f, elapsed time = %0.2fs'
+              % (frame, ii, thresh_size_temp, thresh_value_temp, time.perf_counter() - tstart) )
+        
+        # if first frame, only do one iteration
+        if frame == 0:
+            break
 
-        # compute threshold constraint based on the difference of array size
-        thresh_constraint = np.diff([thresh_size[0],
-                                     thresh_size_attempt]) 
-        iter_attempt = 0 # set the iteration counter
-        
-        # begin iteration to determine the best value of threshold ratio
-        while abs(thresh_constraint) > 100 and iter_attempt < 50: 
-            
-            # threshold intensity image with new value
-            if thresh_constraint > 0:   # if it becomes larger, increase thresh_value
-                thresh_value = thresh_value + 0.01
-            else:                       # if it becomes smaller, decrease thresh_value
-                thresh_value = thresh_value - 0.01
-            img_thresh_med = img_now_med > thresh_value * np.max(img_now_med)
-            
-            # label and measure every clusters
-            blobs = measure.label(img_thresh_med, background=0)
-            labels = np.unique(blobs.ravel())[1:] # produce label numbers/tags
-            sizes = np.array([np.argwhere(blobs==l).shape[0] for l in labels])
-            thresh_size_attempt = max(sizes)
-            
-            # keep only the largest cluster
-            keep = labels[np.argwhere((sizes == max(sizes)))[0]]
-            blob = blobs == keep    
-            
-            # update the constraint to determine loop stop/continue
-            thresh_constraint = np.diff([thresh_size[0],
-                                         thresh_size_attempt]) 
-            
-            # update iteration counter
-            iter_attempt = iter_attempt + 1
-            
-            # print iteration number 
-            print('iter-count = %d, sizes = %d, threshold-constraint = %.2f'
-                  %(iter_attempt, max(sizes), abs(thresh_constraint)) )
-            
-        thresh_size[frame] = thresh_size_attempt
-        
+    # track number of iterations run
+    num_iterations[frame] = ii
+    # size of thresholded region
+    thresh_size[frame] = sizes[max_ind]
+    # threshold value
+    threshold[frame] = thresh_value_temp
     # store threshold/binarized image
     blobBin.append(blob)
 
