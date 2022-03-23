@@ -89,11 +89,10 @@ def trans_MSD_Namba(Nframes, cm, rollAng, n1, n2, n3, expTime, nInterval):
 def regMSD_Namba(Nframes, cm, vol_exp, nInterval):
               
     MSD = np.zeros(nInterval)
-    
-    j = 1;
+    j = 1
     while j < nInterval+1:
-        temp =[];
-        i = 0;
+        temp = []
+        i = 0
         while i + j <= Nframes-1:
             temp.append((cm[i+j] - cm[i])**2)
             i += 1
@@ -106,15 +105,14 @@ def regMSD_Namba(Nframes, cm, vol_exp, nInterval):
 def regMSD(Nframes, cm, vol_exp, nInterval):
               
     MSD = np.zeros(nInterval)
-    
-    j = 1;
-    while j < nInterval:
-        temp =[];
-        i = 0;
+    j = 1
+    while j < nInterval+1:
+        temp = []
+        i = 0
         while i + j <= Nframes-1:
             temp.append((cm[i+j] - cm[i])**2)
             i += 1
-        MSD[j] = np.mean(temp)
+        MSD[j-1] = np.mean(temp)
         j += 1
         
     return MSD
