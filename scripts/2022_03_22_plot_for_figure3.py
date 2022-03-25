@@ -150,7 +150,7 @@ ax0.set_ylabel(r'Displacement [$\mu$m]')
 ax0.legend([r"$\Delta x$","$\Delta y$","$\Delta z$"], ncol=3)
 ax0.set_ylim([-1.5, 1.5])
 ax0.set_xlim([0, 20])
-ax0.figure.savefig(pdfFolder + '/fig3-tracking-CM.pdf')  
+# ax0.figure.savefig(pdfFolder + '/fig3-tracking-CM.pdf')  
 
 #%% Translation displacement
 disp_specific = disp[whichFiles]
@@ -168,7 +168,7 @@ ax0.set_ylim([-0.6, 0.6])
 ax0.set_yticks([-0.5,0,0.5])
 ax0.set_xlim([0, 20])
 ax0.set_xticks([0,5,10,15,20])
-ax0.figure.savefig(pdfFolder + '/fig3-tracking-disp.pdf')  
+# ax0.figure.savefig(pdfFolder + '/fig3-tracking-disp.pdf')  
 
 trans0 = disp_specific[:,0][:-1] + disp_specific[:,0][1:]
 trans1 = disp_specific[:,1][:-1] + disp_specific[:,1][1:]
@@ -205,7 +205,7 @@ ax0.legend([r"$\Delta_{n_1}$","$\Delta_{n_2}$","$\Delta_{n_3}$"], ncol=3)
 # ax0.set_yticks([-0.5,0,0.5])
 ax0.set_xlim([0, 20])
 ax0.set_xticks([0,5,10,15,20])
-ax0.figure.savefig(pdfFolder + '/fig3-tracking-disp-ang.pdf')  
+# ax0.figure.savefig(pdfFolder + '/fig3-tracking-disp-ang.pdf')  
 
 EuAng0 = disp_Ang_specific[:,0][:-1] + disp_Ang_specific[:,0][1:]
 EuAng1 = disp_Ang_specific[:,1][:-1] + disp_Ang_specific[:,1][1:]
