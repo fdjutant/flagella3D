@@ -30,7 +30,7 @@ pxum = 0.115
 # load raw images
 # search_dir = Path(r"\\10.206.26.21\opm2\franky-sample-images")
 
-setName = 'suc40'
+setName = 'suc-40'
 
 this_file_dir = os.path.join(os.path.dirname(os.path.abspath("./")),
                             'Dropbox (ASU)','Research')
@@ -59,13 +59,14 @@ n3s = np.zeros((nt, 3))
 r_coms = np.zeros((nt, 3))
 flagella_len = np.zeros(nt)
 radial_dist_pt = np.zeros(nt)
-thresh_value = 205
+thresh_value = 200
 tstart = time.perf_counter()
 
 total_frame = 1
 total_frame = nt
 
 for frame in range(total_frame):
+    print('frame-#:', frame)
     
     # grab current image
     img_now = np.array(imgs[frame])
@@ -98,7 +99,8 @@ blobBin = np.array(blobBin)
 #%% save to npy    
 savingThreshold = os.path.join(os.path.dirname(os.path.dirname(whichFiles)),
                                'threshold-decon',
-                  os.path.basename(whichFiles)[:-4] + '-thresh-decon' + '.npy')
+                  os.path.basename(whichFiles)[:-4] + '-thresh-decon-' +
+                  str(thresh_value) + '.npy')
 np.save(savingThreshold, blobBin)
 
 #%% Check thresholding
