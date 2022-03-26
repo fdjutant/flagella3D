@@ -28,11 +28,15 @@ this_file_dir = os.path.join(os.path.dirname(os.path.abspath("./")),
 intensityFolder = os.path.join(this_file_dir,
                           'DNA-Rotary-Motor', 'Helical-nanotubes',
                           'Light-sheet-OPM', 'Result-data',
-                          'Flagella-data', setName)
+                           # 'Flagella-data', setName)
+                            'Flagella-decon', setName)
 thresholdFolder = os.path.join(this_file_dir,
                           'DNA-Rotary-Motor', 'Helical-nanotubes',
                           'Light-sheet-OPM', 'Result-data',
-                          'Flagella-data', 'threshold-length')
+                           # 'Flagella-data', 'threshold-length')
+                           # 'Flagella-data', 'threshold-iterative')
+                           # 'Flagella-data', 'threshold-fixed-value')
+                            'Flagella-decon', 'threshold-decon')
 
 intensityFiles = list(Path(intensityFolder).glob("*.npy"))
 thresholdFiles = list(Path(thresholdFolder).glob("*threshold*.npy"))
