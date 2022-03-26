@@ -10,6 +10,7 @@ from sklearn.decomposition import PCA
 import napari
 import msd
 from skimage import measure
+from scipy.optimize import minimize
 from naparimovie import Movie
 from pathlib import Path
 import scipy.signal
@@ -18,6 +19,9 @@ import cv2
 import os.path
 import pickle
 import time
+from numpy.linalg import norm
+import helixFun
+from helixFun import f, g
 
 # time settings in the light sheet
 pxum = 0.115
@@ -35,12 +39,18 @@ this_file_dir = os.path.join(os.path.dirname(os.path.abspath("./")),
 thresholdFolder = os.path.join(this_file_dir,
                           'DNA-Rotary-Motor', 'Helical-nanotubes',
                           'Light-sheet-OPM', 'Result-data',
-                          'Flagella-data', 'threshold-decon','suc40')
+                          'Flagella-data', 'threshold-length')
+intensityFolder = os.path.join(this_file_dir,
+                          'DNA-Rotary-Motor', 'Helical-nanotubes',
+                          'Light-sheet-OPM', 'Result-data',
+                          'Flagella-data', 'suc-40')
 
 thresholdFiles = list(Path(thresholdFolder).glob("*threshold*.npy"))
+intensityFiles = list(Path(intensityFolder).glob("*.npy"))
 
 whichFiles = 0
 imgs_thresh = np.load(thresholdFiles[whichFiles])
+imgs = da.from_npy_stack(intensityFiles[whichFiles])
 print(thresholdFiles[whichFiles])
 
 #%% Compute CM then generate n1, n2, n3
@@ -58,13 +68,25 @@ r_coms = np.zeros((nt, 3))
 flagella_len = np.zeros(nt)
 radial_dist_pt = np.zeros(nt)
 blob_size = np.zeros(nt)
+fitImage = np.zeros(imgs.shape)
+params = np.zeros([nt,3])
+sin_params = np.zeros([nt,3])
+cos_params = np.zeros([nt,3])
+regcoeff = np.zeros(nt)
+NiterRec = np.zeros(nt)
 
 tstart = time.perf_counter()
 
-for frame in range(nt):
-# for frame in range(0,2):
+frame_start = 0
+frame_end = 10
+
+# for frame in range(nt):
+for frame in range(frame_start,frame_end):
     
     print('frame: %d, time: %.2f' %(frame, time.perf_counter()-tstart) )
+       
+    # import image
+    img = imgs[frame]    
     
     # compute threshold pixel number
     blob = imgs_thresh[frame]
@@ -73,10 +95,9 @@ for frame in range(nt):
     # ######################################
     # extract coordinates and center of mass
     # ######################################
-    
     # extract coordinates
-    X0 = np.argwhere(blob).astype('float') # coordinates 
-    xb.append(X0) # store coordinates
+    X0 = np.argwhere(blob).astype('float')  # coordinates 
+    xb.append(X0)                           # store coordinates
     
     # compute center of mass
     CM1 = np.array([sum(X0[:,j]) for j in range(X0.shape[1])])/X0.shape[0]
@@ -115,10 +136,70 @@ for frame in range(nt):
                                    dist_projected_along_m3],axis=1)
     xp.append(coord_on_principal)
 
+    # ##########################
+    # Curve fit helix projection
+    # ##########################
+    xx = dist_projected_along_n1
+    yy = dist_projected_along_m2
+    zz = dist_projected_along_m3
+    
+    # Minimize both projection together
+    guess = np.array([1.5, 2*np.pi/20, 1])
+    fromFit = helixFun.fitHelix(xx, yy, zz, guess)
+    a, r, Niter = fromFit.exportFit()
+    print('amp = %.2f, wave-# = %.2f, phase = %.2f, rsq = %.2f, niter = %d'
+          %(a[0], a[1], a[2], r, Niter))
+    if r < 0.05:
+        fromFit = helixFun.fitHelix(xx, zz, xx, guess)
+        a, r, Niter = fromFit.exportFit()
+        print('amp = %.2f, wave-# = %.2f, phase = %.2f, rsq = %.2f, niter = %d'
+              %(a[0], a[1], a[2], r, Niter))
+    
+    # Save flip, regression coefficient, and fit parameters
+    regcoeff[frame] = r
+    params[frame,:] = a
+    NiterRec[frame] = Niter
+    
+    # #################################################
+    # Construct 3D matrix for the fit for visualization    
+    # #################################################
+    # construct helix with some padding
+    x = np.linspace(min(xx),max(xx),5000)
+    ym = f(x,a)             # mid
+    yt = f(x,a)+0.5*a[1]    # top
+    yb = f(x,a)-0.5*a[1]    # bot
+    zm = g(x,a)             # mid
+    zt = g(x,a)+0.5*a[1]    # top
+    zb = g(x,a)-0.5*a[1]    # bot
+    
+    # stack the coordinates
+    fit_P = np.array([x,yb,zb]).T
+    fit_P = np.append(fit_P, np.array([x,yb,zm]).T,axis=0)
+    fit_P = np.append(fit_P, np.array([x,yb,zt]).T,axis=0)
+    fit_P = np.append(fit_P, np.array([x,ym,zb]).T,axis=0)
+    fit_P = np.append(fit_P, np.array([x,ym,zm]).T,axis=0)
+    fit_P = np.append(fit_P, np.array([x,ym,zt]).T,axis=0)
+    fit_P = np.append(fit_P, np.array([x,yt,zb]).T,axis=0)
+    fit_P = np.append(fit_P, np.array([x,yt,zm]).T,axis=0)
+    fit_P = np.append(fit_P, np.array([x,yt,zt]).T,axis=0)
+    
+    # inverse transform
+    fit_X = pca.inverse_transform(fit_P)+ CM1
+    fit_X = fit_X.astype('int')  
+    fit_X = np.unique(fit_X,axis=0)
+    
+    # prepare our model image
+    fit_img = np.zeros(img.shape)
+    for idx in fit_X:
+        i,j,k = idx
+        fit_img[i,j,k] = 1  # value of 1 for the fit
+    fitImage[frame] = fit_img
+
     # ##########################################
     # determine the flagella length along the n1
     # ##########################################
-    flagella_len[frame] = np.max(dist_projected_along_n1) - np.min(dist_projected_along_n1)
+    flagella_len[frame] = np.max(dist_projected_along_n1) -\
+                          np.min(dist_projected_along_n1)
 
     # ##########################################
     # find the furthest point along the flagella
@@ -141,6 +222,78 @@ for frame in range(nt):
 
     # generate n3 such that coordinate system is right-handed
     n3s[frame] = np.cross(n1s[frame], n2s[frame])
+
+# View image and threshold together
+viewer = napari.Viewer(ndisplay=3)      
+viewer.add_image(imgs[frame_start:frame_end], contrast_limits=[100,400],\
+                 scale=[0.115,.115,.115], blending='additive',\
+                 multiscale=False,colormap='gray',opacity=1)
+viewer.add_image(fitImage[frame_start:frame_end], contrast_limits=[0,1],\
+                 scale=[0.115,.115,.115], blending='additive',\
+                 multiscale=False,colormap='red',opacity=0.5)
+viewer.add_image(imgs_thresh[frame_start:frame_end], contrast_limits=[0,1],\
+                 scale=[0.115,.115,.115], blending='additive',\
+                 multiscale=False,colormap='green',opacity=0.5)
+viewer.scale_bar.visible=True
+viewer.scale_bar.unit='um'
+viewer.scale_bar.position='top_right'
+viewer.axes.visible = True
+napari.run()
+
+#%% Plot 2D projections (XY, XZ, YZ)
+iframe = 0
+for frame in range(0,1):
+    
+    xb0 = xb[frame] - cm[frame]
+    xp0 = xp[frame]
+    
+    # x-y plot
+    # fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
+    fig = plt.figure(dpi=150, figsize = (15, 6))
+    # fig.suptitle('data: %s\n' %os.path.basename(thresholdFiles[whichFiles]) +
+    #               'frame-num = ' + str(frame).zfill(3) + ', '
+    #               'length = %.3f $\mu$m' %np.round(flagella_len[frame]*pxum,3) + ','
+    #               'radius = %.3f $\mu$m\n' %np.round(radial_dist_pt[frame]*pxum,3) +
+    #                '$\Delta_\parallel$ = %.3f $\mu$m, ' %np.round(disp[frame,0],3) +
+    #                '$\Delta_{\perp 1}$ = %.3f $\mu$m, ' %np.round(disp[frame,1],3) +
+    #                '$\Delta_{\perp 2}$ = %.3f $\mu$m\n' %np.round(disp[frame,2],3) +
+    #               '$\Delta_\psi$ = %.3f rad, ' %np.round(disp_Ang[frame,1],3) +
+    #               '$\Delta_\gamma$ = %.3f rad, ' %np.round(disp_Ang[frame,0],3) +
+    #               '$\Delta_\phi$ = %.3f rad\n' %np.round(disp_Ang[frame,2],3)
+    #               )
+    ax0 = fig.add_subplot(231)
+    ax1 = fig.add_subplot(232)
+    ax2 = fig.add_subplot(233)
+    ax3 = fig.add_subplot(234)
+    ax4 = fig.add_subplot(235)
+    ax5 = fig.add_subplot(236)
+    
+    ax0.axis('equal')
+    ax0.scatter(xb0[:,0],xb0[:,1],c='k',alpha=0.3)
+    ax0.set_xlabel(r'x [px]'); ax0.set_ylabel(r'y [px]')
+    # fig0.savefig('filename.pdf')
+    
+    ax1.axis('equal')
+    ax1.scatter(xb0[:,0],xb0[:,2],c='k',alpha=0.3)
+    ax1.set_xlabel(r'x [px]'); ax1.set_ylabel(r'z [px]')
+    
+    # y-z plot
+    ax2.axis('equal')
+    ax2.scatter(xb0[:,1],xb0[:,2],c='k',alpha=0.3)
+    ax2.set_xlabel(r'y [px]'); ax2.set_ylabel(r'z [px]')
+    
+    ax3.axis('equal')
+    ax3.scatter(xp0[:,0],xp0[:,1],c='r',alpha=0.3)
+    ax3.set_xlabel(r'x [px]'); ax3.set_ylabel(r'y [px]')
+    
+    # x-z plot
+    ax4.axis('equal')
+    ax4.scatter(xp0[:,0],xp0[:,2],c='r',alpha=0.3)
+    ax4.set_xlabel(r'x [px]'); ax4.set_ylabel(r'z [px]')
+    
+    ax5.axis('equal')
+    ax5.scatter(xp0[:,1],xp0[:,2],c='r',alpha=0.3)
+    ax5.set_xlabel(r'y [px]'); ax5.set_ylabel(r'z [px]')
 
 #%% Compute translation displacements and angles
 nt = len(n1s)
@@ -198,6 +351,9 @@ print('Length [um] = %.2f with std = %.2f'
       %(np.mean(flagella_len)*0.115,np.std(flagella_len)*0.115))
 print(nt)
 
+plt.plot(dist_projected_along_n1,dist_projected_along_m2,'x')
+plt.plot(yy,fit_along_N3,'o')
+
 #%% Print to PNG: snapshot of threshold from 6 angles
 for frame in range(nt):
 # for frame in range(0,1):
@@ -206,17 +362,17 @@ for frame in range(nt):
     xp0 = xp[frame]
 
     fig = plt.figure(dpi=150, figsize = (10, 6))
-    fig.suptitle('data: %s\n' %os.path.basename(thresholdFiles[whichFiles]) +
-                  'frame-num = ' + str(frame).zfill(3) + ', '
-                  'length = %.3f $\mu$m' %np.round(flagella_len[frame]*pxum,3) + ','
-                  'radius = %.3f $\mu$m\n' %np.round(radial_dist_pt[frame]*pxum,3) +
-                   '$\Delta_\parallel$ = %.3f $\mu$m, ' %np.round(disp[frame,0],3) +
-                   '$\Delta_{\perp 1}$ = %.3f $\mu$m, ' %np.round(disp[frame,1],3) +
-                   '$\Delta_{\perp 2}$ = %.3f $\mu$m\n' %np.round(disp[frame,2],3) +
-                  '$\Delta_\psi$ = %.3f rad, ' %np.round(disp_Ang[frame,1],3) +
-                  '$\Delta_\gamma$ = %.3f rad, ' %np.round(disp_Ang[frame,0],3) +
-                  '$\Delta_\phi$ = %.3f rad\n' %np.round(disp_Ang[frame,2],3)
-                  )
+    # fig.suptitle('data: %s\n' %os.path.basename(thresholdFiles[whichFiles]) +
+    #               'frame-num = ' + str(frame).zfill(3) + ', '
+    #               'length = %.3f $\mu$m' %np.round(flagella_len[frame]*pxum,3) + ','
+    #               'radius = %.3f $\mu$m\n' %np.round(radial_dist_pt[frame]*pxum,3) +
+    #                '$\Delta_\parallel$ = %.3f $\mu$m, ' %np.round(disp[frame,0],3) +
+    #                '$\Delta_{\perp 1}$ = %.3f $\mu$m, ' %np.round(disp[frame,1],3) +
+    #                '$\Delta_{\perp 2}$ = %.3f $\mu$m\n' %np.round(disp[frame,2],3) +
+    #               '$\Delta_\psi$ = %.3f rad, ' %np.round(disp_Ang[frame,1],3) +
+    #               '$\Delta_\gamma$ = %.3f rad, ' %np.round(disp_Ang[frame,0],3) +
+    #               '$\Delta_\phi$ = %.3f rad\n' %np.round(disp_Ang[frame,2],3)
+    #               )
     ax0 = fig.add_subplot(231,projection='3d')
     ax2 = fig.add_subplot(232,projection='3d')
     ax3 = fig.add_subplot(235,projection='3d')
@@ -358,15 +514,16 @@ for frame in range(nt):
     ax6.scatter(xp0[:,0]*pxum, xp0[:,1]*pxum,\
                 xp0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
     
+    
     # save to folder
-    snapshotFolder = os.path.join(
-                     os.path.dirname(thresholdFiles[whichFiles]),
-                     os.path.basename(thresholdFiles[whichFiles])[:-4]
-                     + '-snapshots')
-    if os.path.isdir(snapshotFolder) != True:
-        os.mkdir(snapshotFolder) # create path if non-existent
-    ax6.figure.savefig(os.path.join(snapshotFolder, 
-                                    str(frame).zfill(3) + '.png'))
+    # snapshotFolder = os.path.join(
+    #                  os.path.dirname(thresholdFiles[whichFiles]),
+    #                  os.path.basename(thresholdFiles[whichFiles])[:-4]
+    #                  + '-snapshots')
+    # if os.path.isdir(snapshotFolder) != True:
+    #     os.mkdir(snapshotFolder) # create path if non-existent
+    # ax6.figure.savefig(os.path.join(snapshotFolder, 
+    #                                 str(frame).zfill(3) + '.png'))
 
 #%% Plot length (and) radius (and) threshold pixel total vs time 
 fig = plt.figure(dpi=150, figsize = (40, 15))

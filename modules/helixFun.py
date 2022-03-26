@@ -100,26 +100,28 @@ class fitHelix:
         else:
             a0 = np.array([1.,b,-np.pi/2])
         
-        maxIter = 20
+        maxIter = 30
         while r<0.2 and Niter<maxIter:
             
-            '''
             res = minimize(self.E, a0,
-                           method='powell',options={'disp': False})
-            '''
-            res = minimize(self.E, a0, method='L-BFGS-B', 
-                           jac=self.gradE,
-                           options={'disp': False})    
+                            method='powell',options={'disp': False})
+            # res = minimize(self.E, a0, method='L-BFGS-B', 
+            #                 jac=self.gradE,
+            #                 bounds = [(0,5),(0,1),(-np.pi,np.pi)],
+            #                 options={'disp': False})    
             
             a = res.x       
             r = self.rsq(N,self.E(a)) # compute regression coefficient
             
+            a0 = a
             
-            if r<0.2:
+            # update phase guess value
+            a0[2] = (a0[2] + np.pi/8)%(2 * np.pi)
+            
+            # update wave number
+            # a0[1] = a0[1]*1.1
                 
-                a0[2] = (a0[2]+2*np.pi/maxIter)%(2*np.pi)
-                
-                Niter += 1
+            Niter += 1
             
         return a, r, Niter
     
@@ -139,7 +141,6 @@ class fitHelix:
 
         ydata = self.yy
         zdata = self.zz
-
     
         dy = f(self.xx,a) - ydata
         dz = g(self.xx,a) - zdata
