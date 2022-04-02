@@ -86,6 +86,38 @@ def trans_MSD_Namba(Nframes, cm, rollAng, n1, n2, n3, expTime, nInterval):
     return MSD_N, MSD_S1, MSD_S2, MSD_NR
 
 @jit(nopython=True)
+def trans_MSD_direct_Namba(Nframes, cm, rollAng, n1, n2, n3, expTime, nInterval):
+
+    # compute translation MSD at 3 different axes
+    MSD_S1 = np.zeros(nInterval); MSD_N = np.zeros(nInterval);
+    MSD_NR = np.zeros(nInterval); MSD_S2 = np.zeros(nInterval);
+    j = 1;
+    while j < nInterval+1:
+        tempN = []; tempS1 = []; tempS2 = []; tempNR = [];
+        i = 0;
+        while i + j <= Nframes-1:
+            deltaXYZ = (cm[i+j,:]-cm[i,:])*0.115
+            tempN.append((n1[i,0]*deltaXYZ[0] +
+                          n1[i,1]*deltaXYZ[1] + 
+                          n1[i,2]*deltaXYZ[2])**2)
+            tempS1.append((n2[i,0]*deltaXYZ[0] +
+                           n2[i,1]*deltaXYZ[1] + 
+                           n2[i,2]*deltaXYZ[2])**2)
+            tempS2.append((n3[i,0]*deltaXYZ[0] +
+                           n3[i,1]*deltaXYZ[1] + 
+                           n3[i,2]*deltaXYZ[2])**2)
+            tempNR.append((n1[i,0]*deltaXYZ[0] + n1[i,1]*deltaXYZ[1] + 
+                           n1[i,2]*deltaXYZ[2]) * (rollAng[i+j] - rollAng[i]))
+            i += 1
+        MSD_N[j-1]  = np.mean(np.array(tempN))
+        MSD_S1[j-1] = np.mean(np.array(tempS1))
+        MSD_S2[j-1] = np.mean(np.array(tempS2))
+        MSD_NR[j-1] = np.mean(np.array(tempNR))
+        j += 1
+    
+    return MSD_N, MSD_S1, MSD_S2, MSD_NR
+
+@jit(nopython=True)
 def regMSD_Namba(Nframes, cm, vol_exp, nInterval):
               
     MSD = np.zeros(nInterval)
