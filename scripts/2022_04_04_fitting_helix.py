@@ -10,14 +10,14 @@ from sklearn.decomposition import PCA
 import napari
 import msd
 from skimage import measure
-from scipy.optimize import minimize, least_squares
+from scipy.optimize import least_squares
 from naparimovie import Movie
 from pathlib import Path
-import scipy.signal
 from scipy import optimize
 import os.path
 import pickle
 import time
+import tifffile
 
 # time settings in the light sheet
 pxum = 0.115
@@ -38,19 +38,21 @@ intensityFolder = os.path.join(this_file_dir,
                           'Light-sheet-OPM', 'Result-data',
                           'Flagella-data', 'suc-40')
 
-thresholdFiles = list(Path(thresholdFolder).glob("*threshold*.npy"))
+thresholdFiles = list(Path(thresholdFolder).glob("*-LabKit-*.tif"))
 intensityFiles = list(Path(intensityFolder).glob("*.npy"))
 
-whichFiles = 0
-imgs_thresh = np.load(thresholdFiles[whichFiles])
+whichFiles = 24
+# imgs_thresh = np.load(thresholdFiles[whichFiles])
+imgs_thresh = tifffile.imread(thresholdFiles[whichFiles]).astype('bool')
 imgs = da.from_npy_stack(intensityFiles[whichFiles])
-print(thresholdFiles[whichFiles])
+print(thresholdFiles[whichFiles].name)
 
 #%% Compute CM then generate n1, n2, n3
 blobBin = []
 xb = []
 xp = []
 nt = len(imgs_thresh)
+# nt = 250
 cm = np.zeros((nt,3))
 n1s = np.zeros((nt, 3))
 n2s = np.zeros((nt, 3))
@@ -63,10 +65,6 @@ radial_dist_pt = np.zeros(nt)
 blob_size = np.zeros(nt)
 fitImage = np.zeros(imgs.shape)
 params = np.zeros([nt,3])
-sin_params = np.zeros([nt,3])
-cos_params = np.zeros([nt,3])
-regcoeff = np.zeros(nt)
-NiterRec = np.zeros(nt)
 
 tstart = time.perf_counter()
 
@@ -76,14 +74,25 @@ frame_end = nt
 # for frame in range(nt):
 for frame in range(frame_start,frame_end):
     
-    print('frame: %d, time: %.2f' %(frame, time.perf_counter()-tstart) )
+    print('frame: %d, time (sec): %.2f' %(frame, time.perf_counter()-tstart) )
        
-    # import image
-    img = imgs[frame]    
+    # grab current image
+    img = np.array(imgs_thresh[frame])
+
+    # label and measure every clusters
+    blobs = measure.label(img, background=0)
+    labels = np.arange(1, blobs.max() + 1, dtype=int)
+    sizes = np.array([np.sum(blobs == l) for l in labels])
     
-    # compute threshold pixel number
-    blob = imgs_thresh[frame]
-    blob_size[frame] = np.sum(blob == True)
+    # keep only the largest cluster  
+    max_ind = np.argmax(sizes)
+    blob_size[frame] = sizes[max_ind]
+    
+    # mask showing which pixels ae in largest cluster
+    blob = blobs == labels[max_ind]
+    
+    # store threshold/binarized image
+    blobBin.append(blob)
     
     # ######################################
     # extract coordinates and center of mass
@@ -121,69 +130,79 @@ for frame in range(frame_start,frame_end):
     # #####################################
     # rotate flagella on the principal axes
     # #####################################
-    dist_projected_along_n1 = n1s[frame, 0] * coords[:, 0] +\
-                              n1s[frame, 1] * coords[:, 1] +\
-                              n1s[frame, 2] * coords[:, 2]
-    dist_projected_along_m2 = m2s[frame, 0] * coords[:, 0] +\
-                              m2s[frame, 1] * coords[:, 1] +\
-                              m2s[frame, 2] * coords[:, 2]
-    dist_projected_along_m3 = m3s[frame, 0] * coords[:, 0] +\
-                              m3s[frame, 1] * coords[:, 1] +\
-                              m3s[frame, 2] * coords[:, 2]
-    coord_on_principal = np.stack([dist_projected_along_n1,
-                                   dist_projected_along_m2,
-                                   dist_projected_along_m3],axis=1)
+    pts_on_n1 = n1s[frame, 0] * coords[:, 0] +\
+                n1s[frame, 1] * coords[:, 1] +\
+                n1s[frame, 2] * coords[:, 2]
+    pts_on_m2 = m2s[frame, 0] * coords[:, 0] +\
+                m2s[frame, 1] * coords[:, 1] +\
+                m2s[frame, 2] * coords[:, 2]
+    pts_on_m3 = m3s[frame, 0] * coords[:, 0] +\
+                m3s[frame, 1] * coords[:, 1] +\
+                m3s[frame, 2] * coords[:, 2]
+    coord_on_principal = np.stack([pts_on_n1,
+                                   pts_on_m2,
+                                   pts_on_m3],axis=1)
     xp.append(coord_on_principal)
 
     # ##########################
     # Curve fit helix projection
     # ##########################
-    xx = dist_projected_along_n1
-    yy = dist_projected_along_m2
-    zz = dist_projected_along_m3
-    
-    # Minimize both projection together
+    # Fix amplitude and wave number, and set initial guess for phase
     amplitude = 1.65
-    period = 25; wave_number = 0.28
+    wave_number = 0.28
     phase = np.pi/10
     
-    def cosine_fn(xx,a): # model for "y" projection (on xz plane)
-        return a[0] * np.cos(a[1] * xx + a[2])
+    def cosine_fn(pts_on_n1,a): # model for "y" projection (on xz plane)
+        return a[0] * np.cos(a[1] * pts_on_n1 + a[2])
 
-    def sine_fn(xx,a): # model for "z" projection (on xy plane)
-        return a[0] * np.sin(a[1] * xx + a[2])
+    def sine_fn(pts_on_n1,a): # model for "z" projection (on xy plane)
+        return a[0] * np.sin(a[1] * pts_on_n1 + a[2])
     
     def cost_fn(a):
-        cost = np.concatenate((cosine_fn(xx, a) - yy, sine_fn(xx,a)-zz)) / xx.size
+        cost = np.concatenate((cosine_fn(pts_on_n1, a) -
+                   pts_on_m2, sine_fn(pts_on_n1,a)-pts_on_m3)) / pts_on_n1.size
         return cost
     
     def jacobian_fn(a): #Cost gradient
 
-        dy = cosine_fn(xx,a) - yy
-        dz = sine_fn(xx,a) - zz
+        dy = cosine_fn(pts_on_n1,a) - pts_on_m2
+        dz = sine_fn(pts_on_n1,a) - pts_on_m3
         
-        g0 = dy  * np.cos(a[1] * xx + a[2]) + dz  * np.sin(a[1] * xx + a[2])
-        g2 = -dy * np.sin(a[1] * xx + a[2]) + dz  * np.cos(a[1] * xx + a[2])
-        g1 = xx * g2
+        g0 = dy  * np.cos(a[1] * pts_on_n1 + a[2]) +\
+             dz  * np.sin(a[1] * pts_on_n1 + a[2])
+        g2 = -dy * np.sin(a[1] * pts_on_n1 + a[2]) +\
+              dz  * np.cos(a[1] * pts_on_n1 + a[2])
+        g1 = pts_on_n1 * g2
         
-        return np.array([g0.sum(),g1.sum(),g2.sum()])*2 / len(xx)
+        return np.array([g0.sum(),g1.sum(),g2.sum()])*2 / len(pts_on_n1)
     
     init_params = np.array([amplitude, wave_number, phase])
-    lower_bounds = [0, 0, -np.inf]
-    upper_bounds = [np.inf, np.inf, np.inf]
-    
-    # results_fit = least_squares(cost_fn, init_params,
-    #                             bounds=(lower_bounds, upper_bounds))
-    # fit_params = results_fit["x"]
+    lower_bounds = [1.5, 0.25, -np.inf]
+    upper_bounds = [2.5, 0.3, np.inf]
     
     # fix a parameter: radius and wave number
-    results_fit = least_squares(lambda p: cost_fn([amplitude, wave_number, p[0]]),
-                                init_params[2],
-                                bounds=(lower_bounds[2], upper_bounds[2]))
-    fit_params = np.array([amplitude, wave_number, results_fit["x"][0]])
+    # results_fit = least_squares(lambda p: cost_fn([amplitude, wave_number, p[0]]),
+    #                             init_params[2],
+    #                             bounds=(lower_bounds[2], upper_bounds[2]))
+    # phase = results_fit["x"][0]
 
-    print(fit_params)
-    
+    # fix a parameter: only radius    
+    # results_fit = least_squares(lambda p: cost_fn([amplitude, p[0], p[1]]),
+    #                             init_params[1:3],
+    #                             bounds=(lower_bounds[1:3], upper_bounds[1:3]))
+    # wave_number = results_fit["x"][0]
+    # phase = results_fit["x"][1]
+    # fit_params = np.array([amplitude, wave_number, phase])
+
+    # fix none    
+    results_fit = least_squares(lambda p: cost_fn([p[0], p[1], p[2]]),
+                                init_params[0:3],
+                                bounds=(lower_bounds[0:3], upper_bounds[0:3]))
+    amplitude = results_fit["x"][0]
+    wave_number = results_fit["x"][1]
+    phase = results_fit["x"][2]
+    fit_params = np.array([amplitude, wave_number, phase])
+
     # Save fit parameters
     params[frame,:] = fit_params
     
@@ -191,13 +210,13 @@ for frame in range(frame_start,frame_end):
     # Construct 3D matrix for the fit for visualization    
     # #################################################
     # construct helix with some padding
-    x = np.linspace(min(xx),max(xx),5000)
-    ym = cosine_fn(x,fit_params)                        # mid
-    yt = cosine_fn(x,fit_params)+0.5*fit_params[1]      # top
-    yb = cosine_fn(x,fit_params)-0.5*fit_params[1]      # bot
-    zm = sine_fn(x,fit_params)                        # mid
-    zt = sine_fn(x,fit_params)+0.5*fit_params[1]      # top
-    zb = sine_fn(x,fit_params)-0.5*fit_params[1]      # bot
+    x = np.linspace(min(pts_on_n1),max(pts_on_n1),5000)
+    ym = cosine_fn(x,fit_params)                          # mid
+    yt = cosine_fn(x,fit_params) + 0.5*fit_params[1]      # top
+    yb = cosine_fn(x,fit_params) - 0.5*fit_params[1]      # bottom
+    zm = sine_fn(x,fit_params)                            # mid
+    zt = sine_fn(x,fit_params)   + 0.5*fit_params[1]      # top
+    zb = sine_fn(x,fit_params)   - 0.5*fit_params[1]      # bottom
     
     # stack the coordinates
     fit_P = np.array([x,yb,zb]).T
@@ -223,98 +242,55 @@ for frame in range(frame_start,frame_end):
     fit_img = np.zeros(img.shape)
     for idx in fit_X:
         i,j,k = idx
-        fit_img[i,j,k] = 1  # value of 1 for the fit
+        if i < img.shape[0] and j < img.shape[1] and k < img.shape[2]:
+            fit_img[i,j,k] = 1  # value of 1 for the fit
     fitImage[frame] = fit_img
 
     # ##########################################
     # determine the flagella length along the n1
     # ##########################################
-    flagella_len[frame] = np.max(dist_projected_along_n1) -\
-                          np.min(dist_projected_along_n1)
-
-    # ##########################################
-    # find the furthest point along the flagella
-    # and the positive n1 direction
-    # and use this to determine n2
-    # ##########################################
-    ind_pt = np.argmax(dist_projected_along_n1)
-    coord_pt = coords[ind_pt]
-
-    # project out n1
-    coord_pt_proj = coord_pt - (coord_pt.dot(n1s[frame])) * n1s[frame]
-
-    # check the radial distance of this point from the center
-    radial_dist_pt[frame] = np.linalg.norm(coord_pt_proj)
-
-    # generate n2 from this
-    n2s[frame] = coord_pt_proj / np.linalg.norm(coord_pt_proj)
-
+    flagella_len[frame] = np.max(pts_on_n1) - np.min(pts_on_n1)
+    
+    # ########################################
+    # compute n2 and n3 from phase information
+    # ######################################## 
+    
+    n2s[frame] = m2s[frame] * np.cos(phase) - m3s[frame] * np.sin(phase)
+    n2s[frame] = n2s[frame] / np.linalg.norm(n2s[frame])
+    # n3s[frame] = m2s[frame] * np.sin(phase) + m3s[frame] * np.cos(phase)
+    
     assert n1s[frame].dot(n2s[frame]) < 1e-12
 
     # generate n3 such that coordinate system is right-handed
     n3s[frame] = np.cross(n1s[frame], n2s[frame])
+    n3s[frame] = n3s[frame] / np.linalg.norm(n3s[frame])
+    
+    assert n1s[frame].dot(n3s[frame]) < 1e-12
+    
+    # negative control: not tracking any points
+    # n2s[frame] = m2s[frame]
+    # n3s[frame] = m3s[frame]
 
-#%% View image and threshold together
+blobBin = np.array(blobBin)
+
+#%% View image, threshold, and fit together
 viewer = napari.Viewer(ndisplay=3)      
 viewer.add_image(imgs[frame_start:frame_end], contrast_limits=[100,400],\
                  scale=[0.115,.115,.115], blending='additive',\
                  multiscale=False,colormap='gray',opacity=1)
+viewer.add_image(blobBin[frame_start:frame_end], contrast_limits=[0,1],\
+                 scale=[0.115,.115,.115], blending='additive',\
+                 multiscale=False,colormap='green',opacity=0.2)
 viewer.add_image(fitImage[frame_start:frame_end], contrast_limits=[0,1],\
-                 scale=[0.115,.115,.115], blending='additive',\
-                 multiscale=False,colormap='red',opacity=0.5)
-viewer.add_image(imgs_thresh[frame_start:frame_end], contrast_limits=[0,1],\
-                 scale=[0.115,.115,.115], blending='additive',\
-                 multiscale=False,colormap='green',opacity=0.5)
+                  scale=[0.115,.115,.115], blending='additive',\
+                  multiscale=False,colormap='red',opacity=0.2)
 viewer.scale_bar.visible=True
 viewer.scale_bar.unit='um'
 viewer.scale_bar.position='top_right'
 viewer.axes.visible = True
 napari.run()
 
-#%% Plot 2D projections (XY, XZ, YZ)
-for frame in range(frame_start,frame_end):
-    
-    xb0 = xb[frame] - cm[frame]
-    xp0 = xp[frame]
-    
-    # x-y plot
-    fig = plt.figure(dpi=150, figsize = (15, 6))
-    ax0 = fig.add_subplot(231)
-    ax1 = fig.add_subplot(232)
-    ax2 = fig.add_subplot(233)
-    ax3 = fig.add_subplot(234)
-    ax4 = fig.add_subplot(235)
-    ax5 = fig.add_subplot(236)
-    
-    ax0.axis('equal')
-    ax0.scatter(xb0[:,0],xb0[:,1],c='k',alpha=0.3)
-    ax0.set_xlabel(r'x [px]'); ax0.set_ylabel(r'y [px]')
-    # fig0.savefig('filename.pdf')
-    
-    ax1.axis('equal')
-    ax1.scatter(xb0[:,0],xb0[:,2],c='k',alpha=0.3)
-    ax1.set_xlabel(r'x [px]'); ax1.set_ylabel(r'z [px]')
-    
-    # y-z plot
-    ax2.axis('equal')
-    ax2.scatter(xb0[:,1],xb0[:,2],c='k',alpha=0.3)
-    ax2.set_xlabel(r'y [px]'); ax2.set_ylabel(r'z [px]')
-    
-    ax3.axis('equal')
-    ax3.scatter(xp0[:,0],xp0[:,1],c='r',alpha=0.3)
-    ax3.set_xlabel(r'x [px]'); ax3.set_ylabel(r'y [px]')
-    
-    # x-z plot
-    ax4.axis('equal')
-    ax4.scatter(xp0[:,0],xp0[:,2],c='r',alpha=0.3)
-    ax4.set_xlabel(r'x [px]'); ax4.set_ylabel(r'z [px]')
-    
-    ax5.axis('equal')
-    ax5.scatter(xp0[:,1],xp0[:,2],c='r',alpha=0.3)
-    ax5.set_xlabel(r'y [px]'); ax5.set_ylabel(r'z [px]')
-
 #%% Compute translation displacements and angles
-nt = len(n1s)
 dpitch = np.zeros(nt)
 droll = np.zeros(nt)
 dyaw = np.zeros(nt)
@@ -365,234 +341,170 @@ disp = np.stack([disp_n1,disp_n2,disp_n3],axis=1)
 firstone = np.array([[0,0,0]])
 disp= np.vstack([firstone,disp])
 
-print('Length [um] = %.2f with std = %.2f'
-      %(np.mean(flagella_len)*0.115,np.std(flagella_len)*0.115))
-print(nt)
+fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
+plt.plot(disp_n1,'purple',alpha=0.75)
+plt.plot(disp_n2,'C1',alpha=0.75)
+plt.plot(disp_n3,'C2',alpha=0.75)
+ax0.set_xlabel(r'Time [sec]')
+ax0.set_ylabel(r'Displacement [$\mu m^2$]')
+# ax0.set_ylim([0, 0.5])
+# ax0.set_xlim([0, 3.2])
+ax0.legend(['$n_1$', '$n_2$', '$n_3$'], ncol=3)
 
-plt.plot(dist_projected_along_n1,dist_projected_along_m2,'x')
-plt.plot(yy,fit_along_N3,'o')
+print('Filename: %s' %thresholdFiles[whichFiles].name)
+print('Number of frames = %d, length (std) [um] = %.2f (%.2f)'
+      %(nt, np.mean(flagella_len)*0.115,np.std(flagella_len)*0.115))
 
-#%% Print to PNG: snapshot of threshold from 6 angles
-for frame in range(nt):
-# for frame in range(0,1):
-        
-    xb0 = xb[frame] - cm[frame]
-    xp0 = xp[frame]
+# Compute MSD and curve fit
+# initialize msd
+msd_n1 = []; msd_n2 = []; msd_n3 = []; co_msd = []
+msad_roll = []; msad_pitch = []; msad_yaw = []; msd_CM = []
+nInterval = 50
 
-    fig = plt.figure(dpi=150, figsize = (10, 6))
-    # fig.suptitle('data: %s\n' %os.path.basename(thresholdFiles[whichFiles]) +
-    #               'frame-num = ' + str(frame).zfill(3) + ', '
-    #               'length = %.3f $\mu$m' %np.round(flagella_len[frame]*pxum,3) + ','
-    #               'radius = %.3f $\mu$m\n' %np.round(radial_dist_pt[frame]*pxum,3) +
-    #                '$\Delta_\parallel$ = %.3f $\mu$m, ' %np.round(disp[frame,0],3) +
-    #                '$\Delta_{\perp 1}$ = %.3f $\mu$m, ' %np.round(disp[frame,1],3) +
-    #                '$\Delta_{\perp 2}$ = %.3f $\mu$m\n' %np.round(disp[frame,2],3) +
-    #               '$\Delta_\psi$ = %.3f rad, ' %np.round(disp_Ang[frame,1],3) +
-    #               '$\Delta_\gamma$ = %.3f rad, ' %np.round(disp_Ang[frame,0],3) +
-    #               '$\Delta_\phi$ = %.3f rad\n' %np.round(disp_Ang[frame,2],3)
-    #               )
-    ax0 = fig.add_subplot(231,projection='3d')
-    ax2 = fig.add_subplot(232,projection='3d')
-    ax3 = fig.add_subplot(235,projection='3d')
-    ax4 = fig.add_subplot(234,projection='3d')
-    ax5 = fig.add_subplot(233,projection='3d')
-    ax6 = fig.add_subplot(236,projection='3d')
-    pxum = 0.115
+# center-of-mass tracking
+nt = len(cm)
+dstCM = np.zeros(nt)
+for i in range(len(cm)): dstCM[i] = np.linalg.norm(cm[i])
 
-    ## plot 1
-    x, y, z = np.array([[-40,0,0],[0,-40,0],[0,0,-40]])*pxum
-    u, v, w = np.array([[60,0,0],[0,60,0],[0,0,60]])*pxum
-    ax0.quiver(x,y,z,u,v,w,arrow_length_ratio=0.1, color="black")
-    edgePoint = 40
-    ax0.set_ylim(-edgePoint*pxum,edgePoint*pxum)
-    ax0.set_xlim(-edgePoint*pxum,edgePoint*pxum)
-    ax0.set_zlim(-edgePoint*pxum,edgePoint*pxum)
-    ax0.view_init(elev=30, azim=30)
-    ax0.set_xlabel(r'x [$\mu m$]'); ax0.set_ylabel(r'y [$\mu m$]')
-    ax0.set_zlabel(r'z [$\mu m$]')
-    ax0.scatter(xb0[:,0]*pxum, xb0[:,1]*pxum,\
-                xb0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
-    # ax0.scatter(endpt[frame,0]*pxum,\
-    #             endpt[frame,1]*pxum,\
-    #             endpt[frame,2]*pxum, c = 'r', alpha=0.5, s=50) 
-    origin = [0,0,0]
-    X, Y, Z = zip(origin)
-    Un1, Vn1, Wn1 = zip(list(5*n1s[frame])) 
-    Un2, Vn2, Wn2 = zip(list(5*n2s[frame])) 
-    Un3, Vn3, Wn3 = zip(list(5*n3s[frame]))
-    ax0.quiver(X,Y,Z,Un1,Vn1,Wn1,color='C0')
-    ax0.quiver(X,Y,Z,Un2,Vn2,Wn2,color='C1')
-    ax0.quiver(X,Y,Z,Un3,Vn3,Wn3,color='C2')
+# MSD: mean square displacement
+MSD_n1, MSD_n2, MSD_n3, CO_MSD = msd.trans_MSD_Namba(nt,
+                                          cm, EuAng[:,1],
+                                          n1s, n2s, n3s,
+                                          exp3D_sec, nInterval)
+MSAD_P = msd.regMSD_Namba(nt, EuAng[:,0], exp3D_sec, nInterval)
+MSAD_R = msd.regMSD_Namba(nt, EuAng[:,1], exp3D_sec, nInterval)
+MSAD_Y = msd.regMSD_Namba(nt, EuAng[:,2], exp3D_sec, nInterval)
+MSD_CM = msd.regMSD_Namba(nt, dstCM, exp3D_sec, nInterval)
 
-    ## plot 2
-    x, y, z = np.array([[-40,0,0],[0,-40,0],[0,0,-40]])*pxum
-    u, v, w = np.array([[60,0,0],[0,60,0],[0,0,60]])*pxum
-    ax2.quiver(x,y,z,u,v,w,arrow_length_ratio=0.1, color="black")
-    edgePoint = 40
-    ax2.set_ylim(-edgePoint*pxum,edgePoint*pxum)
-    ax2.set_xlim(-edgePoint*pxum,edgePoint*pxum)
-    ax2.set_zlim(-edgePoint*pxum,edgePoint*pxum)
-    ax2.view_init(elev=0, azim=90)
-    ax2.set_xlabel(r'x [$\mu m$]')
-    ax2.set_yticks([])
-    ax2.set_zlabel(r'z [$\mu m$]')
-    ax2.scatter(xb0[:,0]*pxum, xb0[:,1]*pxum,\
-                xb0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
-    # ax2.scatter(endpt[frame,0]*pxum,\
-    #             endpt[frame,1]*pxum,\
-    #             endpt[frame,2]*pxum, c = 'r', alpha=0.5, s=50) 
-    origin = [0,0,0]
-    X, Y, Z = zip(origin)
-    Un1, Vn1, Wn1 = zip(list(5*n1s[frame])) 
-    Un2, Vn2, Wn2 = zip(list(5*n2s[frame])) 
-    Un3, Vn3, Wn3 = zip(list(5*n3s[frame]))
-    ax2.quiver(X,Y,Z,Un1,Vn1,Wn1,color='C0')
-    ax2.quiver(X,Y,Z,Un2,Vn2,Wn2,color='C1')
-    ax2.quiver(X,Y,Z,Un3,Vn3,Wn3,color='C2')
+# Fit MSD with y = Const + B*x for N, S, NR, PY, R
+Nfit = 10
+xtime = np.linspace(1,Nfit,Nfit)
+def MSDfit(x, a, b): return b + a * x  
 
-    ## plot 3
-    x, y, z = np.array([[-40,0,0],[0,-40,0],[0,0,-40]])*pxum
-    u, v, w = np.array([[60,0,0],[0,60,0],[0,0,60]])*pxum
-    ax3.quiver(x,y,z,u,v,w,arrow_length_ratio=0.1, color="black")
-    edgePoint = 40
-    ax3.set_ylim(-edgePoint*pxum,edgePoint*pxum)
-    ax3.set_xlim(-edgePoint*pxum,edgePoint*pxum)
-    ax3.set_zlim(-edgePoint*pxum,edgePoint*pxum)
-    ax3.view_init(elev=0, azim=0)
-    ax3.set_xticks([])
-    ax3.set_ylabel(r'y [$\mu m$]')
-    ax3.set_zlabel(r'z [$\mu m$]')
-    ax3.scatter(xb0[:,0]*pxum, xb0[:,1]*pxum,\
-                xb0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
-    # ax3.scatter(endpt[frame,0]*pxum,\
-    #            endpt[frame,1]*pxum,\
-    #            endpt[frame,2]*pxum, c = 'r', alpha=0.5, s=50) 
-    origin = [0,0,0]
-    X, Y, Z = zip(origin)
-    Un1, Vn1, Wn1 = zip(list(5*n1s[frame])) 
-    Un2, Vn2, Wn2 = zip(list(5*n2s[frame])) 
-    Un3, Vn3, Wn3 = zip(list(5*n3s[frame]))
-    ax3.quiver(X,Y,Z,Un1,Vn1,Wn1,color='r')
-    ax3.quiver(X,Y,Z,Un2,Vn2,Wn2,color='g')
-    ax3.quiver(X,Y,Z,Un3,Vn3,Wn3,color='b')
+# fit MSD and MSAD
+fit_n1, fit_n1_const  = optimize.curve_fit(MSDfit, xtime, MSD_n1[0:Nfit])[0]
+fit_n2n3, fit_n2n3_const  = optimize.curve_fit(MSDfit, xtime,
+                        np.mean([MSD_n2[0:Nfit],MSD_n3[0:Nfit]],axis=0))[0]
+fit_CO, fit_CO_const = optimize.curve_fit(MSDfit, xtime, CO_MSD[0:Nfit])[0]
+fit_PY, fit_PY_const = optimize.curve_fit(MSDfit, xtime,
+                          np.mean([MSAD_P[0:Nfit],MSAD_Y[0:Nfit]],axis=0))[0]
+fit_R,fit_R_const   = optimize.curve_fit(MSDfit, xtime, MSAD_R[0:Nfit])[0]
+fit_CM,fit_CM_const = optimize.curve_fit(MSDfit, xtime, MSD_CM[0:Nfit])[0]
 
-    ## plot 4
-    x, y, z = np.array([[-40,0,0],[0,-40,0],[0,0,-40]])*pxum
-    u, v, w = np.array([[60,0,0],[0,60,0],[0,0,60]])*pxum
-    ax4.quiver(x,y,z,u,v,w,arrow_length_ratio=0.1, color="black")
-    edgePoint = 40
-    ax4.set_ylim(-edgePoint*pxum,edgePoint*pxum)
-    ax4.set_xlim(-edgePoint*pxum,edgePoint*pxum)
-    ax4.set_zlim(-edgePoint*pxum,edgePoint*pxum)
-    ax4.view_init(elev=90, azim=0)
-    ax4.set_xlabel(r'x [$\mu m$]')
-    ax4.set_ylabel(r'y [$\mu m$]')
-    ax4.set_zticks([])
-    ax4.scatter(xb0[:,0]*pxum, xb0[:,1]*pxum,\
-                xb0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
-    # ax4.scatter(endpt[frame,0]*pxum,\
-    #            endpt[frame,1]*pxum,\
-    #            endpt[frame,2]*pxum, c = 'r', alpha=0.5, s=50) 
-    origin = [0,0,0]
-    X, Y, Z = zip(origin)
-    Un1, Vn1, Wn1 = zip(list(5*n1s[frame])) 
-    Un2, Vn2, Wn2 = zip(list(5*n2s[frame])) 
-    Un3, Vn3, Wn3 = zip(list(5*n3s[frame]))
-    ax4.quiver(X,Y,Z,Un1,Vn1,Wn1,color='C0')
-    ax4.quiver(X,Y,Z,Un2,Vn2,Wn2,color='C1')
-    ax4.quiver(X,Y,Z,Un3,Vn3,Wn3,color='C2')
-    
-    ## plot 5
-    x, y, z = np.array([[-40,0,0],[0,-40,0],[0,0,-40]])*pxum
-    u, v, w = np.array([[60,0,0],[0,60,0],[0,0,60]])*pxum
-    ax5.quiver(x,y,z,u,v,w,arrow_length_ratio=0.1, color="black")
-    edgePoint = 40
-    ax5.set_ylim(-edgePoint*pxum,edgePoint*pxum)
-    ax5.set_xlim(-edgePoint*pxum,edgePoint*pxum)
-    ax5.set_zlim(-edgePoint*pxum,edgePoint*pxum)
-    ax5.view_init(elev=0, azim=90)
-    ax5.set_xlabel(r'x [$\mu m$]')
-    ax5.set_yticks([])
-    ax5.set_zlabel(r'z [$\mu m$]')
-    ax5.scatter(xp0[:,0]*pxum, xp0[:,1]*pxum,\
-                xp0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
-        
-    ## plot 6
-    x, y, z = np.array([[-40,0,0],[0,-40,0],[0,0,-40]])*pxum
-    u, v, w = np.array([[60,0,0],[0,60,0],[0,0,60]])*pxum
-    ax6.quiver(x,y,z,u,v,w,arrow_length_ratio=0.1, color="black")
-    edgePoint = 40
-    ax6.set_ylim(-edgePoint*pxum,edgePoint*pxum)
-    ax6.set_xlim(-edgePoint*pxum,edgePoint*pxum)
-    ax6.set_zlim(-edgePoint*pxum,edgePoint*pxum)
-    ax6.view_init(elev=90, azim=0)
-    ax6.set_xlabel(r'x [$\mu m$]')
-    ax6.set_ylabel(r'y [$\mu m$]')
-    ax6.set_zticks([])
-    ax6.scatter(xp0[:,0]*pxum, xp0[:,1]*pxum,\
-                xp0[:,2]*pxum, c = 'k',alpha=0.1, s=10)
-    
-    
-    # save to folder
-    # snapshotFolder = os.path.join(
-    #                  os.path.dirname(thresholdFiles[whichFiles]),
-    #                  os.path.basename(thresholdFiles[whichFiles])[:-4]
-    #                  + '-snapshots')
-    # if os.path.isdir(snapshotFolder) != True:
-    #     os.mkdir(snapshotFolder) # create path if non-existent
-    # ax6.figure.savefig(os.path.join(snapshotFolder, 
-    #                                 str(frame).zfill(3) + '.png'))
+# Additional fit
+fit_n2,fit_n2_const  = optimize.curve_fit(MSDfit, xtime, MSD_n2[0:Nfit])[0]
+fit_n3,fit_n3_const  = optimize.curve_fit(MSDfit, xtime, MSD_n3[0:Nfit])[0]
+fit_P, fit_P_const  = optimize.curve_fit(MSDfit, xtime, MSAD_P[0:Nfit])[0]
+fit_Y, fit_Y_const  = optimize.curve_fit(MSDfit, xtime, MSAD_Y[0:Nfit])[0]
 
-#%% Plot length (and) radius (and) threshold pixel total vs time 
-fig = plt.figure(dpi=150, figsize = (40, 15))
-plt.rcParams.update({'font.size': 30})
-fig.suptitle('data: %s (' %os.path.basename(thresholdFiles[whichFiles]) +
-              'Nt = %d' %nt + ', '
-              'L = %.3f $\pm$ %.3f $\mu$m'
-              %(np.mean(flagella_len)*pxum,
-                np.std(flagella_len)*pxum) + ', '
-              'R = %.3f $\pm$ %.3f $\mu$m)'
-              %(np.mean(radial_dist_pt)*pxum,
-                np.std(radial_dist_pt)*pxum) )
-ax0 = fig.add_subplot(231)
-ax1 = fig.add_subplot(232)
-ax2 = fig.add_subplot(233)
-ax3 = fig.add_subplot(234)
-ax4 = fig.add_subplot(235)
-ax5 = fig.add_subplot(236)
-pxum = 0.115
+# Compute diffusion coefficients
+D_trans = np.stack([fit_n1, fit_n2, fit_n3]) / (2*exp3D_sec)
+D_rot = np.stack([fit_R, fit_P, fit_Y]) / (2*exp3D_sec)
+D_CO = fit_CO / (2*exp3D_sec)
 
-ax0.plot(np.arange(0,nt),flagella_len*pxum,'k')
-ax0.set_xlabel(r'frame-num')
-ax0.set_ylabel(r'length [$\mu m$]')
+print('translational diffusion coefficients [um2/sec]:\n', D_trans)
+print('rotational diffusion coefficients [rad2/sec]:\n', D_rot)
+print('co-diffusion coefficients [um x rad]:\n', D_CO)
 
-ax1.plot(np.arange(0,nt),radial_dist_pt*pxum,'k')
-ax1.set_xlabel(r'frame-num')
-ax1.set_ylabel(r'radius [$\mu m$]')
+# plot
+xaxis = np.arange(1,nInterval+1)
+plt.rcParams.update({'font.size': 18})
+fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
+ax0.plot(xaxis*exp3D_sec, MSD_n1,
+         c='purple',marker="s",mfc='none',
+         ms=5,ls='None',alpha=1)   
+ax0.plot(xaxis*exp3D_sec, MSD_n2,
+         c='C1',marker="s",mfc='none',
+         ms=5,ls='None',alpha=1)
+ax0.plot(xaxis*exp3D_sec, MSD_n3,
+         c='C2',marker="s",mfc='none',
+         ms=5,ls='None',alpha=1)
+ax0.plot(xaxis*exp3D_sec, fit_n1_const + fit_n1*xaxis,
+         c='purple',alpha=1,label='_nolegend_')
+ax0.plot(xaxis*exp3D_sec,fit_n2_const + fit_n2*xaxis,
+         c='C1',alpha=1,label='_nolegend_')
+ax0.plot(xaxis*exp3D_sec,fit_n3_const + fit_n3*xaxis,
+         c='C2',alpha=1,label='_nolegend_')
+ax0.set_xlabel(r'Lag time [sec]')
+ax0.set_ylabel(r'MSD [$\mu m^2$]')
+# ax0.set_ylim([0, 0.5])
+# ax0.set_xlim([0, 3.2])
+ax0.legend(['$n_1$', '$n_2$', '$n_3$'], ncol=3)
 
-ax2.plot(np.arange(0,nt),blob_size,'k')
-ax2.set_xlabel(r'frame-num')
-ax2.set_ylabel(r'pixel total number')
+# Compute A, B, D
+kB = 1.380649e-23  # J / K
+T = 273 + 25       # K
 
-ax3.plot(np.arange(1,nt),disp_n1*pxum,'C0')
-ax3.plot(np.arange(1,nt),disp_n2*pxum,'C1')
-ax3.plot(np.arange(1,nt),disp_n3*pxum,'C2')
-ax3.set_xlabel(r'frame-num')
-ax3.set_ylabel(r'displacement along local axes [$\mu m$]')
-ax3.legend(['$n_1$','$n_2$','$n_3$'], loc="upper right", ncol = 3)
+# from bead measurement
+vis70 = 2.84e-3
+vis50 = 1.99e-3
+vis40 = 1.77e-3
 
-ax4.plot(np.arange(1,nt),disp_roll,'C0')
-ax4.set_xlabel(r'frame-num')
-ax4.set_ylabel(r'$\psi$ [rad]')
-ax4.set_ylim(min(disp_roll)-0.1,max(disp_roll)+0.1)
+D_n1 = D_trans[0] * 1e-12
+D_n1_psi = D_CO * 1e-6
+D_psi = D_rot[0]
 
-ax5.plot(np.arange(1,nt),disp_pitch,'C1')
-ax5.plot(np.arange(1,nt),disp_yaw,'C2')
-ax5.set_xlabel(r'frame-num')
-ax5.set_ylabel(r'$\beta$ or $\gamma$ [rad]')
-ax5.set_ylim(min(disp_roll)-0.1,max(disp_roll)+0.1)
-ax5.legend(['pitch','yaw'],loc="upper right", ncol = 2)
+the_A = D_psi * kB * T / (D_n1 * D_psi - D_n1_psi**2) / vis40
+the_B = -D_n1_psi * kB * T / (D_n1 * D_psi - D_n1_psi**2) / vis40
+the_D = D_n1 * kB * T / (D_n1 * D_psi - D_n1_psi**2) / vis40
 
-ax5.figure.savefig(os.path.join(snapshotFolder, 'summary.png'))
+print('propulsion matrix\n A/vis, B/vis, D/vis = %.2E %.2E %.2E'
+      %(the_A, the_B, the_D))
 
-print('one dataset takes [min]:', (time.perf_counter()-tstart)/60)
+
+#%% Store tracking information to PKL
+savingPKL = os.path.join(thresholdFiles[whichFiles].parent,
+                         thresholdFiles[whichFiles].with_suffix('.pkl'))
+data = {
+        "flagella_length": flagella_len,
+        "flagella_radius": radial_dist_pt,
+        "exp3D_sec": exp3D_sec,
+        "pxum": pxum,
+        "cm": cm,
+        "disp": disp,
+        "disp_Ang": disp_Ang,
+        "MSD": np.stack([MSD_n1, MSD_n2, MSD_n3],axis=1),
+        "MSAD": np.stack([MSAD_R, MSAD_P, MSAD_Y],axis=1),
+        "CO_MSD": CO_MSD,
+        "D_trans": D_trans,
+        "D_rot": D_rot,
+        "D_co": D_CO
+        }
+with open(savingPKL, "wb") as f:
+      pickle.dump(data, f)
+print('%s is saved' %(os.path.basename(savingPKL)))
+
+#%% MSAD: roll
+plt.rcParams.update({'font.size': 18})
+fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
+ax0.plot(xaxis*exp3D_sec, MSAD_R,
+         c='purple',marker="o",mfc='none',
+         ms=5,ls='None',alpha=1)   
+ax0.plot(xaxis*exp3D_sec, fit_R_const + fit_R*xaxis,
+         c='purple',alpha=1,label='_nolegend_')
+ax0.set_xlabel(r'Lag time [sec]')
+ax0.set_ylabel(r'MSAD [rad$^2$]')
+ax0.set_ylim([0, 3])
+ax0.set_xlim([0, 3.2])
+ax0.set_yticks([0,1,2,3])
+ax0.legend(['$R$'])
+# ax0.figure.savefig(pdfFolder + '/fig3-MSAD-R.pdf')
+
+# MSAD: pitch/yaw
+fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
+ax0.plot(xaxis*exp3D_sec, MSAD_P,
+         c='C1',marker="o",mfc='none',
+         ms=5,ls='None',alpha=1)
+ax0.plot(xaxis*exp3D_sec, MSAD_Y,
+         c='C2',marker="o",mfc='none',
+         ms=5,ls='None',alpha=1)
+ax0.plot(xaxis*exp3D_sec,fit_P_const + fit_P*xaxis,
+         c='C1',alpha=1,label='_nolegend_')
+ax0.plot(xaxis*exp3D_sec,fit_Y_const + fit_Y*xaxis,
+         c='C2',alpha=1,label='_nolegend_')
+ax0.set_xlabel(r'Lag time [sec]')
+ax0.set_ylabel(r'MSAD [rad$^2$]')
+ax0.set_ylim([0, 0.08])
+ax0.set_yticks([0,0.02,0.04,0.06,0.08])
+ax0.set_xlim([0, 3.2])
+ax0.legend(['$P$', '$Y$'], ncol=2)

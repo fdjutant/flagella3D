@@ -34,11 +34,12 @@ intensityFolder = os.path.join(this_file_dir,
 labkit_files = list(Path(labkit_folder).glob("*.tif"))
 intensityFiles = list(Path(intensityFolder).glob("*.npy"))
 
-whichFiles = 0
+whichFiles = 2
 imgs = da.from_npy_stack(intensityFiles[whichFiles])
 img_labkit = tifffile.imread(labkit_files[whichFiles]).astype('bool')
 nt = len(imgs)
-print('filename = %s, with total-frame = %d' %(labkit_files[whichFiles].name, nt))
+print('filename = %s, with total-frame = %d'
+      %(labkit_files[whichFiles].name, nt))
 
 #%% binarization, extract coordinates, and compute CM
 blobBin = []
