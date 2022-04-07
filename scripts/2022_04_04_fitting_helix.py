@@ -36,15 +36,17 @@ thresholdFolder = os.path.join(this_file_dir,
 intensityFolder = os.path.join(this_file_dir,
                           'DNA-Rotary-Motor', 'Helical-nanotubes',
                           'Light-sheet-OPM', 'Result-data',
-                          'Flagella-data', 'suc-40')
+                          'Flagella-data', 'TIF-files')
 
 thresholdFiles = list(Path(thresholdFolder).glob("*-LabKit-*.tif"))
-intensityFiles = list(Path(intensityFolder).glob("*.npy"))
+intensityFiles = list(Path(intensityFolder).glob("*.tif"))
 
-whichFiles = 24
+whichFiles = 31
+# imgs = da.from_npy_stack(intensityFiles[whichFiles])
 # imgs_thresh = np.load(thresholdFiles[whichFiles])
 imgs_thresh = tifffile.imread(thresholdFiles[whichFiles]).astype('bool')
-imgs = da.from_npy_stack(intensityFiles[whichFiles])
+imgs = tifffile.imread(intensityFiles[whichFiles])
+print(intensityFiles[whichFiles].name)
 print(thresholdFiles[whichFiles].name)
 
 #%% Compute CM then generate n1, n2, n3
