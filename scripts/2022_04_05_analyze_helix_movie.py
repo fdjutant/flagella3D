@@ -335,22 +335,23 @@ ax4 = fig.add_subplot(122)
 downsample_rate = 1
 
 
-rn1_bin_edges = np.linspace(-45, 45, 201)
+rn1_bin_edges = np.linspace(-45, 45, 41)
 rn1_bin_centers = 0.5 * (rn1_bin_edges[1:] + rn1_bin_edges[:-1])
 
-rm2_bin_edges = np.linspace(-15, 15, 101)
+rm2_bin_edges = np.linspace(-15, 15, 21)
 rm2_bin_centers = 0.5 * (rm2_bin_edges[1:] + rm2_bin_edges[:-1])
-h2d, _, _ = np.histogram2d(xp0[:,0], xp0[:,1], bins=(rn1_bin_edges, rm2_bin_edges))
+# (y, x)
+h2d, _, _ = np.histogram2d(xp0[:,1], xp0[:,0], bins=(rm2_bin_edges, rn1_bin_edges))
 
-# [bottom, top, left, right]
-extent_rn1_rm2 = [rm2_bin_edges[0], rm2_bin_edges[-1],
-                  rn1_bin_edges[0], rn1_bin_edges[-1]]
+# [left, right, bottom, top]
+extent_rn1_rm2 = [rn1_bin_edges[0], rn1_bin_edges[-1],
+                  rm2_bin_edges[0], rm2_bin_edges[-1]]
 
-ax3.imshow(h2d, extent=extent_rn1_rm2, origin="lower")
+ax3.imshow(h2d, extent=extent_rn1_rm2, origin="lower", cmap="hot")
 
 # x-z plot
 #ax3.scatter(xp0[:,0][::downsample_rate],xp0[:,1][::downsample_rate], c='k',alpha=0.1)
-ax3.plot(xm, ym_cos, 'C1')
+ax3.plot(xm, ym_cos, 'green', linewidth=5)
 # ax3.plot(xm, ym_cos_ref, 'gray')
 ax3.set_xlabel(r'$R \cdot n_1$ [px]')
 ax3.set_ylabel(r'$R \cdot m_2$ [px]')
