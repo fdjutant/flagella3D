@@ -72,7 +72,7 @@ thresh_min_start = thresh_value - 0.15
 tstart = time.perf_counter()
 
 total_frame = 1
-total_frame = nt
+# total_frame = nt
 
 for frame in range(total_frame):
     

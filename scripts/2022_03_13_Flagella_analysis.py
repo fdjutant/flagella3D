@@ -364,5 +364,5 @@ viewer.scale_bar.unit='um'
 viewer.scale_bar.position='top_right'
 viewer.axes.visible = True
 movie = Movie(myviewer=viewer)
-movie.create_state_dict_from_script('./moviecommands/mcRotate.txt')
+movie.create_state_dict_from_script('./moviecommands/mcRotate-v2.txt')
 movie.make_movie(savingMovie_Rotate,fps=10)
