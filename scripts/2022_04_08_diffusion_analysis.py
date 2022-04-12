@@ -42,7 +42,7 @@ thresholdFiles = list(Path(thresholdFolder).glob("*-LabKit-*.tif"))
 intensityFiles = list(Path(intensityFolder).glob("*.tif"))
 
 # chose which file to analyze
-whichFiles = 91
+whichFiles = 16
 imgs_thresh = tifffile.imread(thresholdFiles[whichFiles])
 imgs = tifffile.imread(intensityFiles[whichFiles])
 print(intensityFiles[whichFiles].name)
@@ -473,8 +473,9 @@ print('propulsion matrix\n A/vis, B/vis, D/vis = %.2E %.2E %.2E'
       %(A_per_vis, B_per_vis, D_per_vis))
 
 #%% Store tracking information to PKL
-savingPKL = os.path.join(thresholdFiles[whichFiles].parent,
-                         thresholdFiles[whichFiles].with_suffix('.pkl'))
+savingPKL = os.path.join(thresholdFiles[whichFiles].parent.parent,
+                         'PKL-files',
+                         thresholdFiles[whichFiles].name[:-4] + '.pkl')
 data = {
         "data_name": intensityFiles[whichFiles].name[:-4],
         "flagella_length": flagella_len,
@@ -495,7 +496,7 @@ data = {
         }
 with open(savingPKL, "wb") as f:
       pickle.dump(data, f)
-print('%s is saved' %(os.path.basename(savingPKL)))
+print('%s is saved in %s' %(os.path.basename(savingPKL), savingPKL))
 
 #%% MSAD: roll
 plt.rcParams.update({'font.size': 18})

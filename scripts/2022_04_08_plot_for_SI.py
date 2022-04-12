@@ -37,11 +37,14 @@ intensityFolder = os.path.join(this_file_dir,
                           'DNA-Rotary-Motor', 'Helical-nanotubes',
                           'Light-sheet-OPM', 'Result-data',
                           'Flagella-data', 'TIF-files')
-
+pdfFolder = os.path.join(this_file_dir,
+                          'DNA-Rotary-Motor', 'Helical-nanotubes',
+                          'Light-sheet-OPM', 'Result-data',
+                          'Flagella-data', 'various-plots')
 thresholdFiles = list(Path(thresholdFolder).glob("*-LabKit-*.tif"))
 intensityFiles = list(Path(intensityFolder).glob("*.tif"))
 
-whichFiles = 29
+whichFiles = 4
 # imgs = da.from_npy_stack(intensityFiles[whichFiles])
 # imgs_thresh = np.load(thresholdFiles[whichFiles])
 imgs_thresh = tifffile.imread(thresholdFiles[whichFiles]).astype('bool')
@@ -54,7 +57,7 @@ blobBin = []
 xb = []
 xp = []
 nt = len(imgs_thresh)
-# nt = 250
+# nt = 330
 cm = np.zeros((nt,3))
 n1s = np.zeros((nt, 3))
 n2s = np.zeros((nt, 3))
@@ -275,238 +278,113 @@ for frame in range(frame_start,frame_end):
 
 blobBin = np.array(blobBin)
 
+#%% Plot 2D projections (XY, XZ, YZ)
+which_frame = 100
+    
+xb0 = xb[which_frame] - cm[which_frame]
+xp0 = xp[which_frame]
+
+# fit line
+xm = np.linspace(min(xp0[:,0]),max(xp0[:,0]),5000)
+ym_cos = cosine_fn(xm,np.array([3,params[which_frame,1], params[which_frame,2]]))       
+ym_sin = sine_fn(xm,np.array([3,params[which_frame,1], params[which_frame,2]]))
+
+ym_cos_ref = cosine_fn(xm,np.array([3,
+                                   params[which_frame,1], 0]))
+ym_sin_ref = sine_fn(xm,np.array([3,
+                                 params[which_frame,1], 0]))
+
+# x-y plot
+fig = plt.figure(dpi=150, figsize = (10, 2))
+# ax3 = fig.add_subplot(121)
+
+# =========
+# n1-n2 plot
+# =========
+rn1_bin_edges = np.linspace(-45, 45, 81)
+rn1_bin_centers = 0.5 * (rn1_bin_edges[1:] + rn1_bin_edges[:-1])
+rm2_bin_edges = np.linspace(-15, 15, 21)
+rm2_bin_centers = 0.5 * (rm2_bin_edges[1:] + rm2_bin_edges[:-1])
+h2d, _, _ = np.histogram2d(xp0[:,1], xp0[:,0],
+                           bins=(rm2_bin_edges, rn1_bin_edges))
+
+# [left, right, bottom, top]
+extent_rn1_rm2 = [rn1_bin_edges[0], rn1_bin_edges[-1],
+                  rm2_bin_edges[0], rm2_bin_edges[-1]]
+
+plt.imshow(h2d, extent=extent_rn1_rm2, origin="lower",
+           cmap="Greys",alpha=0.8)
+plt.plot(xm, ym_cos, 'C1', lw=5)
+plt.xlabel(r'$R \cdot n_1$ [px]')
+plt.ylabel(r'$R \cdot m_2$ [px]')
+plt.ylim([-10, 10])
+plt.axvline(x = 0, color = 'k', label = 'axvline - full height')
+plt.axhline(y = 0, color = 'k', label = 'axvline - full height')
+plt.savefig(pdfFolder + './fitting-n1-m2.pdf')
+
+# ==========
+# n2-n3 plot
+# ==========
+fig = plt.figure(dpi=150, figsize = (10, 2))
+rn1_bin_edges = np.linspace(-45, 45, 31)
+rn1_bin_centers = 0.5 * (rn1_bin_edges[1:] + rn1_bin_edges[:-1])
+rm2_bin_edges = np.linspace(-5, 5, 21)
+rm2_bin_centers = 0.5 * (rm2_bin_edges[1:] + rm2_bin_edges[:-1])
+h2d, _, _ = np.histogram2d(xp0[:,2], xp0[:,0],
+                           bins=(rm2_bin_edges, rn1_bin_edges))
+
+# [left, right, bottom, top]
+extent_rn1_rm2 = [rn1_bin_edges[0], rn1_bin_edges[-1],
+                  rm2_bin_edges[0], rm2_bin_edges[-1]]
+
+plt.imshow(h2d, extent=extent_rn1_rm2, origin="lower",
+           cmap="Greys", alpha=0.8)
+plt.plot(xm, ym_sin, 'C1', lw=5)
+plt.xlabel(r'$R \cdot n_1$ [px]')
+plt.ylabel(r'$R \cdot m_3$ [px]')
+plt.ylim([-10, 10])
+plt.axvline(x = 0, color = 'k', label = 'axvline - full height')
+plt.axhline(y = 0, color = 'k', label = 'axvline - full height')
+plt.savefig(pdfFolder + './fitting-n1-m3.pdf')
+
+
 #%% View image, threshold, and fit together
 viewer = napari.Viewer(ndisplay=3)      
-viewer.add_image(imgs[frame_start:frame_end], contrast_limits=[100,400],\
+viewer.add_image(imgs[frame_start:frame_end], contrast_limits=[110,280],\
                  scale=[0.115,.115,.115], blending='additive',\
                  multiscale=False,colormap='gray',opacity=1)
-viewer.add_image(blobBin[frame_start:frame_end], contrast_limits=[0,1],\
-                 scale=[0.115,.115,.115], blending='additive',\
-                 multiscale=False,colormap='green',opacity=0.2)
-viewer.add_image(fitImage[frame_start:frame_end], contrast_limits=[0,1],\
-                  scale=[0.115,.115,.115], blending='additive',\
-                  multiscale=False,colormap='red',opacity=0.2)
+# viewer.add_image(blobBin[frame_start:frame_end], contrast_limits=[0,1],\
+#                   scale=[0.115,.115,.115], blending='additive',\
+#                   multiscale=False,colormap='green',opacity=0.15)
+# viewer.add_image(fitImage[frame_start:frame_end], contrast_limits=[0,1],\
+#                   scale=[0.115,.115,.115], blending='additive',\
+#                   rendering='iso', iso_threshold = 0.05,\
+#                   multiscale=False,colormap='bop orange',opacity=.4)
 viewer.scale_bar.visible=True
 viewer.scale_bar.unit='um'
 viewer.scale_bar.position='top_right'
 viewer.axes.visible = True
 napari.run()
 
-#%% Compute translation displacements and angles
-dpitch = np.zeros(nt)
-droll = np.zeros(nt)
-dyaw = np.zeros(nt)
-for frame in range(nt-1):
-    dpitch[frame] = np.dot(n2s[frame], n1s[frame+1] - n1s[frame])
-    droll[frame] = np.dot(n3s[frame], n2s[frame+1] - n2s[frame])
-    dyaw[frame] = np.dot(n1s[frame], n3s[frame+1] - n3s[frame])
 
-EuAng = np.zeros([nt,3])
-for frame in range(nt):
-    EuAng[frame,0] = np.sum(dpitch[0:frame+1])
-    EuAng[frame,1] = np.sum(droll[0:frame+1])
-    EuAng[frame,2] = np.sum(dyaw[0:frame+1])
-    
-disp_pitch = np.diff(EuAng[:,0])
-disp_roll = np.diff(EuAng[:,1])
-disp_yaw = np.diff(EuAng[:,2])
-
-disp_Ang = np.stack([disp_pitch,disp_roll,disp_yaw],axis=1)
-firstone = np.array([[0,0,0]])
-disp_Ang = np.vstack([firstone, disp_Ang])
-
-# compute translation displacement
-disp_n1 = []; disp_n2 = []; disp_n3 =[];
-for i in range(nt-1):
-    
-    # displacement in Cartesian coordinates
-    deltaX = ( cm[i+1,0] - cm[i,0] ) * 0.115
-    deltaY = ( cm[i+1,1] - cm[i,1] ) * 0.115
-    deltaZ = ( cm[i+1,2] - cm[i,2] ) * 0.115
-    deltaXYZ = np.array([deltaX, deltaY, deltaZ])
-    
-    # displcament in local axes
-    disp_n1.append(n1s[i,0]*deltaXYZ[0] + 
-                   n1s[i,1]*deltaXYZ[1] +
-                   n1s[i,2]*deltaXYZ[2]) # parallel
-    disp_n2.append(n2s[i,0]*deltaXYZ[0] + 
-                   n2s[i,1]*deltaXYZ[1] +
-                   n2s[i,2]*deltaXYZ[2]) # perp1
-    disp_n3.append(n3s[i,0]*deltaXYZ[0] + 
-                   n3s[i,1]*deltaXYZ[1] +
-                   n3s[i,2]*deltaXYZ[2]) # perp2
-disp_n1 = np.array(disp_n1)
-disp_n2 = np.array(disp_n2)
-disp_n3 = np.array(disp_n3)
-
-disp = np.stack([disp_n1,disp_n2,disp_n3],axis=1)
-firstone = np.array([[0,0,0]])
-disp= np.vstack([firstone,disp])
-
-fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
-plt.plot(disp_n1,'purple',alpha=0.75)
-plt.plot(disp_n2,'C1',alpha=0.75)
-plt.plot(disp_n3,'C2',alpha=0.75)
-ax0.set_xlabel(r'Time [sec]')
-ax0.set_ylabel(r'Displacement [$\mu m^2$]')
-# ax0.set_ylim([0, 0.5])
-# ax0.set_xlim([0, 3.2])
-ax0.legend(['$n_1$', '$n_2$', '$n_3$'], ncol=3)
-
-print('Filename: %s' %thresholdFiles[whichFiles].name)
-print('Number of frames = %d, length (std) [um] = %.2f (%.2f)'
-      %(nt, np.mean(flagella_len)*0.115,np.std(flagella_len)*0.115))
-
-# Compute MSD and curve fit
-# initialize msd
-msd_n1 = []; msd_n2 = []; msd_n3 = []; co_msd = []
-msad_roll = []; msad_pitch = []; msad_yaw = []; msd_CM = []
-nInterval = 50
-
-# center-of-mass tracking
-nt = len(cm)
-dstCM = np.zeros(nt)
-for i in range(len(cm)): dstCM[i] = np.linalg.norm(cm[i])
-
-# MSD: mean square displacement
-MSD_n1, MSD_n2, MSD_n3, CO_MSD = msd.trans_MSD_Namba(nt,
-                                          cm, EuAng[:,1],
-                                          n1s, n2s, n3s,
-                                          exp3D_sec, nInterval)
-MSAD_P = msd.regMSD_Namba(nt, EuAng[:,0], exp3D_sec, nInterval)
-MSAD_R = msd.regMSD_Namba(nt, EuAng[:,1], exp3D_sec, nInterval)
-MSAD_Y = msd.regMSD_Namba(nt, EuAng[:,2], exp3D_sec, nInterval)
-MSD_CM = msd.regMSD_Namba(nt, dstCM, exp3D_sec, nInterval)
-
-# Fit MSD with y = Const + B*x for N, S, NR, PY, R
-Nfit = 10
-xtime = np.linspace(1,Nfit,Nfit)
-def MSDfit(x, a, b): return b + a * x  
-
-# fit MSD and MSAD
-fit_n1, fit_n1_const  = optimize.curve_fit(MSDfit, xtime, MSD_n1[0:Nfit])[0]
-fit_n2n3, fit_n2n3_const  = optimize.curve_fit(MSDfit, xtime,
-                        np.mean([MSD_n2[0:Nfit],MSD_n3[0:Nfit]],axis=0))[0]
-fit_CO, fit_CO_const = optimize.curve_fit(MSDfit, xtime, CO_MSD[0:Nfit])[0]
-fit_PY, fit_PY_const = optimize.curve_fit(MSDfit, xtime,
-                          np.mean([MSAD_P[0:Nfit],MSAD_Y[0:Nfit]],axis=0))[0]
-fit_R,fit_R_const   = optimize.curve_fit(MSDfit, xtime, MSAD_R[0:Nfit])[0]
-fit_CM,fit_CM_const = optimize.curve_fit(MSDfit, xtime, MSD_CM[0:Nfit])[0]
-
-# Additional fit
-fit_n2,fit_n2_const  = optimize.curve_fit(MSDfit, xtime, MSD_n2[0:Nfit])[0]
-fit_n3,fit_n3_const  = optimize.curve_fit(MSDfit, xtime, MSD_n3[0:Nfit])[0]
-fit_P, fit_P_const  = optimize.curve_fit(MSDfit, xtime, MSAD_P[0:Nfit])[0]
-fit_Y, fit_Y_const  = optimize.curve_fit(MSDfit, xtime, MSAD_Y[0:Nfit])[0]
-
-# Compute diffusion coefficients
-D_trans = np.stack([fit_n1, fit_n2, fit_n3]) / (2*exp3D_sec)
-D_rot = np.stack([fit_R, fit_P, fit_Y]) / (2*exp3D_sec)
-D_CO = fit_CO / (2*exp3D_sec)
-
-print('translational diffusion coefficients [um2/sec]:\n', D_trans)
-print('rotational diffusion coefficients [rad2/sec]:\n', D_rot)
-print('co-diffusion coefficients [um x rad]:\n', D_CO)
-
-# plot
-xaxis = np.arange(1,nInterval+1)
-plt.rcParams.update({'font.size': 18})
-fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
-ax0.plot(xaxis*exp3D_sec, MSD_n1,
-         c='purple',marker="s",mfc='none',
-         ms=5,ls='None',alpha=1)   
-ax0.plot(xaxis*exp3D_sec, MSD_n2,
-         c='C1',marker="s",mfc='none',
-         ms=5,ls='None',alpha=1)
-ax0.plot(xaxis*exp3D_sec, MSD_n3,
-         c='C2',marker="s",mfc='none',
-         ms=5,ls='None',alpha=1)
-ax0.plot(xaxis*exp3D_sec, fit_n1_const + fit_n1*xaxis,
-         c='purple',alpha=1,label='_nolegend_')
-ax0.plot(xaxis*exp3D_sec,fit_n2_const + fit_n2*xaxis,
-         c='C1',alpha=1,label='_nolegend_')
-ax0.plot(xaxis*exp3D_sec,fit_n3_const + fit_n3*xaxis,
-         c='C2',alpha=1,label='_nolegend_')
-ax0.set_xlabel(r'Lag time [sec]')
-ax0.set_ylabel(r'MSD [$\mu m^2$]')
-# ax0.set_ylim([0, 0.5])
-# ax0.set_xlim([0, 3.2])
-ax0.legend(['$n_1$', '$n_2$', '$n_3$'], ncol=3)
-
-# Compute A, B, D
-kB = 1.380649e-23  # J / K
-T = 273 + 25       # K
-
-# from bead measurement
-vis70 = 2.84e-3
-vis50 = 1.99e-3
-vis40 = 1.77e-3
-
-D_n1 = D_trans[0] * 1e-12
-D_n1_psi = D_CO * 1e-6
-D_psi = D_rot[0]
-
-the_A = D_psi * kB * T / (D_n1 * D_psi - D_n1_psi**2) / vis40
-the_B = -D_n1_psi * kB * T / (D_n1 * D_psi - D_n1_psi**2) / vis40
-the_D = D_n1 * kB * T / (D_n1 * D_psi - D_n1_psi**2) / vis40
-
-print('propulsion matrix\n A/vis, B/vis, D/vis = %.2E %.2E %.2E'
-      %(the_A, the_B, the_D))
-
-
-#%% Store tracking information to PKL
-savingPKL = os.path.join(thresholdFiles[whichFiles].parent,
-                         thresholdFiles[whichFiles].with_suffix('.pkl'))
-data = {
-        "flagella_length": flagella_len,
-        "flagella_radius": radial_dist_pt,
-        "exp3D_sec": exp3D_sec,
-        "pxum": pxum,
-        "cm": cm,
-        "disp": disp,
-        "disp_Ang": disp_Ang,
-        "MSD": np.stack([MSD_n1, MSD_n2, MSD_n3],axis=1),
-        "MSAD": np.stack([MSAD_R, MSAD_P, MSAD_Y],axis=1),
-        "CO_MSD": CO_MSD,
-        "D_trans": D_trans,
-        "D_rot": D_rot,
-        "D_co": D_CO
-        }
-with open(savingPKL, "wb") as f:
-      pickle.dump(data, f)
-print('%s is saved' %(os.path.basename(savingPKL)))
-
-#%% MSAD: roll
-plt.rcParams.update({'font.size': 18})
-fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
-ax0.plot(xaxis*exp3D_sec, MSAD_R,
-         c='purple',marker="o",mfc='none',
-         ms=5,ls='None',alpha=1)   
-ax0.plot(xaxis*exp3D_sec, fit_R_const + fit_R*xaxis,
-         c='purple',alpha=1,label='_nolegend_')
-ax0.set_xlabel(r'Lag time [sec]')
-ax0.set_ylabel(r'MSAD [rad$^2$]')
-ax0.set_ylim([0, 3])
-ax0.set_xlim([0, 3.2])
-ax0.set_yticks([0,1,2,3])
-ax0.legend(['$R$'])
-# ax0.figure.savefig(pdfFolder + '/fig3-MSAD-R.pdf')
-
-# MSAD: pitch/yaw
-fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
-ax0.plot(xaxis*exp3D_sec, MSAD_P,
-         c='C1',marker="o",mfc='none',
-         ms=5,ls='None',alpha=1)
-ax0.plot(xaxis*exp3D_sec, MSAD_Y,
-         c='C2',marker="o",mfc='none',
-         ms=5,ls='None',alpha=1)
-ax0.plot(xaxis*exp3D_sec,fit_P_const + fit_P*xaxis,
-         c='C1',alpha=1,label='_nolegend_')
-ax0.plot(xaxis*exp3D_sec,fit_Y_const + fit_Y*xaxis,
-         c='C2',alpha=1,label='_nolegend_')
-ax0.set_xlabel(r'Lag time [sec]')
-ax0.set_ylabel(r'MSAD [rad$^2$]')
-ax0.set_ylim([0, 0.08])
-ax0.set_yticks([0,0.02,0.04,0.06,0.08])
-ax0.set_xlim([0, 3.2])
-ax0.legend(['$P$', '$Y$'], ncol=2)
+#%% make movie
+saving_Movie = os.path.join(thresholdFiles[whichFiles].parent,
+                            thresholdFiles[whichFiles].with_suffix('.mov'))
+viewer = napari.Viewer(ndisplay=3)
+viewer.add_image(imgs[frame_start:frame_end], contrast_limits=[110,280],\
+                 scale=[0.115,.115,.115], blending='additive',\
+                 multiscale=False,colormap='gray',opacity=1)
+# viewer.add_image(blobBin[frame_start:frame_end], contrast_limits=[0,1],\
+#                   scale=[0.115,.115,.115], blending='additive',\
+#                   multiscale=False,colormap='green',opacity=0.15)
+# viewer.add_image(fitImage[frame_start:frame_end], contrast_limits=[0,1],\
+#                   scale=[0.115,.115,.115], blending='additive',\
+#                   rendering='iso', iso_threshold = 0.05,\
+#                   multiscale=False,colormap='bop orange',opacity=.4)
+viewer.scale_bar.visible=True
+viewer.scale_bar.unit='um'
+viewer.scale_bar.position='top_right'
+viewer.axes.visible = True
+movie = Movie(myviewer=viewer)
+movie.create_state_dict_from_script('./moviecommands/mcRotate-v2.txt')
+movie.make_movie(saving_Movie,fps=10)

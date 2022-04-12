@@ -347,7 +347,7 @@ h2d, _, _ = np.histogram2d(xp0[:,1], xp0[:,0], bins=(rm2_bin_edges, rn1_bin_edge
 extent_rn1_rm2 = [rn1_bin_edges[0], rn1_bin_edges[-1],
                   rm2_bin_edges[0], rm2_bin_edges[-1]]
 
-ax3.imshow(h2d, extent=extent_rn1_rm2, origin="lower", cmap="hot")
+ax3.imshow(h2d, extent=extent_rn1_rm2, origin="lower", cmap="fire")
 
 # x-z plot
 #ax3.scatter(xp0[:,0][::downsample_rate],xp0[:,1][::downsample_rate], c='k',alpha=0.1)

@@ -6,6 +6,7 @@ import os.path
 from pathlib import Path
 import pandas as pd
 import numpy as np
+from scipy.stats import sem
 
 # Loading pickle files
 this_file_dir = os.path.join(os.path.dirname(os.path.abspath("./")),
@@ -13,7 +14,7 @@ this_file_dir = os.path.join(os.path.dirname(os.path.abspath("./")),
 thresholdFolder = os.path.join(this_file_dir,
                           'DNA-Rotary-Motor', 'Helical-nanotubes',
                           'Light-sheet-OPM', 'Result-data',
-                          'Flagella-data', 'threshold-labKit')
+                          'Flagella-data', 'PKL-files')
 
 pickle_files = list(Path(thresholdFolder).glob('*.pkl'))
 total_file_number = len(pickle_files)
@@ -40,7 +41,7 @@ vis40 = 1.77e-3
 
 for index_files in range(total_file_number):
     
-    print(pickle_files[index_files].name)
+    print(index_files, pickle_files[index_files].name)
     
     with open(pickle_files[index_files], "rb") as f:
         individual_data = pickle.load(f)
@@ -48,8 +49,8 @@ for index_files in range(total_file_number):
     flagella_length_mean[index_files] = np.mean(individual_data["flagella_length"])
     flagella_length_std[index_files] = np.std(individual_data["flagella_length"])
     number_of_frames[index_files] = len(individual_data["flagella_length"])
-    # exp3D_sec = individual_data["exp3D_sec"]
-    # pxum = individual_data["pxum"]
+    exp3D_sec = individual_data["exp3D_sec"]
+    pxum = individual_data["pxum"]
     # cm = individual_data["cm"]
     # disp = individual_data["disp"]
     # disp_Ang = individual_data["disp_Ang"]
@@ -78,15 +79,15 @@ for index_files in range(total_file_number):
 #%% create excel using pandas    
 summary_data = {'data name': data_name,
                 'number of frames': number_of_frames,
-                'mean length [um]': flagella_length_mean,
-                'std length [um]': flagella_length_std,
-                'D_n1 [um^2/sec]': D_trans[:,0],
-                'D_n2 [um^2/sec]': D_trans[:,1],
-                'D_n3 [um^2/sec]': D_trans[:,2],
-                'D_psi [rad^2/sec]': D_rot[:,0],
-                'D_gamma [rad^2/sec]': D_rot[:,1],
-                'D_beta [rad^2/sec]': D_rot[:,2],
-                'D_n1_psi [um x rad/sec]': D_co,
+                'mean length [um]': np.round(flagella_length_mean * pxum, 2),
+                'std length [um]': np.round(flagella_length_std * pxum, 2),
+                'D_n1 [um^2/sec]': np.round(D_trans[:,0],4),
+                'D_n2 [um^2/sec]': np.round(D_trans[:,1],4),
+                'D_n3 [um^2/sec]': np.round(D_trans[:,2],4),
+                'D_psi [rad^2/sec]': np.round(D_rot[:,0],4),
+                'D_gamma [rad^2/sec]': np.round(D_rot[:,1],4),
+                'D_beta [rad^2/sec]': np.round(D_rot[:,2],4),
+                'D_n1_psi [um x rad/sec]': np.round(D_co,4),
                 'A/eta [m]': A_per_vis,
                 'B/eta [m^2]': B_per_vis,
                 'D/eta [m^3]': D_per_vis
