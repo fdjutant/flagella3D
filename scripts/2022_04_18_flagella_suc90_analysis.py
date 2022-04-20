@@ -21,48 +21,45 @@ import tifffile
 
 # time settings in the light sheet
 pxum = 0.115
-camExposure_ms = 3
-sweep_um = 25
+camExposure_ms = 2
+sweep_um = 15
 stepsize_nm = 400
 exp3D_sec = 1e-3 * camExposure_ms * (sweep_um*1e3/stepsize_nm) 
-pxum = 0.115
 
 this_file_dir = os.path.join(os.path.dirname(os.path.abspath("./")),
                             'Dropbox (ASU)','Research')
 thresholdFolder = os.path.join(this_file_dir,
                           'DNA-Rotary-Motor', 'Helical-nanotubes',
                           'Light-sheet-OPM', 'Result-data',
-                          'Microtubule-data', 'threshold-labKit')
+                          'Flagella-data', 'threshold-labKit')
 intensityFolder = os.path.join(this_file_dir,
                           'DNA-Rotary-Motor', 'Helical-nanotubes',
                           'Light-sheet-OPM', 'Result-data',
-                          'Microtubule-data', 'TIF-files')
+                          'Flagella-data', 'TIF-files')
 
 thresholdFiles = list(Path(thresholdFolder).glob("*-LabKit-*.tif"))
 intensityFiles = list(Path(intensityFolder).glob("*.tif"))
 
 # chose which file to analyze
-whichFiles = 7
+whichFiles = 111
 imgs_thresh = tifffile.imread(thresholdFiles[whichFiles])
 imgs = tifffile.imread(intensityFiles[whichFiles])
 print(intensityFiles[whichFiles].name)
 print(thresholdFiles[whichFiles].name)
 
 #%% re-slice images
-reslice = False
-if reslice:
-    reslice_folder = os.path.join(os.path.dirname(intensityFolder),
-                                      'TIF-reslice')
-    fname_save_tiff = os.path.join(reslice_folder,
-                                   intensityFiles[whichFiles].name)
-    fname_save_threshold = os.path.join(reslice_folder,
-                                   intensityFiles[whichFiles].name[:-4] +
-                                   '-LabKit-threshold.tif')
-    img_to_save = tifffile.transpose_axes(imgs, "TZYX", asaxes="TZCYXS")
-    tifffile.imwrite(fname_save_tiff, img_to_save, imagej=True)
-    
-    thres_to_save = tifffile.transpose_axes(imgs_thresh, "TZYX", asaxes="TZCYXS")
-    tifffile.imwrite(fname_save_threshold, thres_to_save, imagej=True)
+reslice_folder = os.path.join(os.path.dirname(intensityFolder),
+                                  'TIF-reslice')
+fname_save_tiff = os.path.join(reslice_folder,
+                               intensityFiles[whichFiles].name)
+fname_save_threshold = os.path.join(reslice_folder,
+                               intensityFiles[whichFiles].name[:-4] +
+                               '-LabKit-threshold.tif')
+img_to_save = tifffile.transpose_axes(imgs, "TZYX", asaxes="TZCYXS")
+tifffile.imwrite(fname_save_tiff, img_to_save, imagej=True)
+
+thres_to_save = tifffile.transpose_axes(imgs_thresh, "TZYX", asaxes="TZCYXS")
+tifffile.imwrite(fname_save_threshold, thres_to_save, imagej=True)
 
 #%% Compute CM then generate n1, n2, n3
 nt = len(imgs_thresh)
@@ -99,11 +96,6 @@ for frame in range(frame_start,frame_end):
     # label and measure every clusters
     blobs = measure.label(img, background=0)
     labels = np.arange(1, blobs.max() + 1, dtype=int)
-    
-    # ################################
-    # pick the largest amount of pixel
-    # ################################
-    # measure number of pixels
     sizes = np.array([np.sum(blobs == l) for l in labels])
     
     # keep only the largest cluster  
@@ -112,32 +104,6 @@ for frame in range(frame_start,frame_end):
     
     # mask showing which pixels ae in largest cluster
     blob = blobs == labels[max_ind]
-    
-
-    # ###################################
-    # pick closest to the previous frames
-    # ###################################
-    
-    # # pick the largest for the first one
-    # if frame == 0:   
-    #     sizes = np.array([np.argwhere(blobs==l).shape[0] for l in labels])
-    #     keep = labels[np.argwhere((sizes == max(sizes)))[0]]
-    #     blob = blobs == keep
-    #     # constraint for the next frame with CM location
-    #     X_f0 = np.argwhere(blob).astype('float')
-    #     CM_f0 = np.array([sum(X_f0[:,j]) for j in range(X_f0.shape[1])])/X_f0.shape[0]
-    # # for the subsequent frame, pick the cluster closest to the previous frame    
-    # else: 
-    #     CM_fN_diff = np.zeros(len(labels))
-    #     CM_fN = np.zeros([len(labels), 3])
-    #     for l in range(len(labels)): # goes through every clusters
-    #         X_fN = np.argwhere(blobs==l+1)
-    #         CM_fN[l] = np.array([sum(X_fN[:,j]) for j in range(X_fN.shape[1])])/X_fN.shape[0]
-    #         CM_fN_diff[l] = np.linalg.norm(CM_f0-CM_fN[l])
-    #     closest_idx = np.where(CM_fN_diff == min(CM_fN_diff))[0][0]
-    #     CM_f0 = CM_fN[closest_idx] # update the constraint value
-    #     keep = labels[closest_idx]
-    #     blob = blobs == keep
     
     # store threshold/binarized image
     blobBin.append(blob)
@@ -315,8 +281,8 @@ for frame in range(frame_start,frame_end):
     assert n1s[frame].dot(n3s[frame]) < 1e-12
     
     # negative control: not tracking any points
-    n2s[frame] = m2s[frame]
-    n3s[frame] = m3s[frame]
+    # n2s[frame] = m2s[frame]
+    # n3s[frame] = m3s[frame]
 
 blobBin = np.array(blobBin)
 print(thresholdFiles[whichFiles].name)
@@ -329,6 +295,9 @@ viewer.add_image(imgs[frame_start:frame_end], contrast_limits=[100,400],\
 viewer.add_image(blobBin[frame_start:frame_end], contrast_limits=[0,1],\
                  scale=[0.115,.115,.115], blending='additive',\
                  multiscale=False,colormap='green',opacity=0.2)
+viewer.add_image(fitImage[frame_start:frame_end], contrast_limits=[0,1],\
+                 scale=[0.115,.115,.115], blending='additive',\
+                 multiscale=False,colormap='red',opacity=0.2)
 viewer.scale_bar.visible=True
 viewer.scale_bar.unit='um'
 viewer.scale_bar.position='top_right'
@@ -431,6 +400,7 @@ def MSDfit(x, a, b): return b + a * x
 fit_n1, fit_n1_const  = optimize.curve_fit(MSDfit, xtime, MSD_n1[0:Nfit])[0]
 fit_n2n3, fit_n2n3_const  = optimize.curve_fit(MSDfit, xtime,
                         np.mean([MSD_n2[0:Nfit],MSD_n3[0:Nfit]],axis=0))[0]
+fit_CO, fit_CO_const = optimize.curve_fit(MSDfit, xtime, CO_MSD[0:Nfit])[0]
 fit_PY, fit_PY_const = optimize.curve_fit(MSDfit, xtime,
                           np.mean([MSAD_P[0:Nfit],MSAD_Y[0:Nfit]],axis=0))[0]
 fit_R,fit_R_const   = optimize.curve_fit(MSDfit, xtime, MSAD_R[0:Nfit])[0]
@@ -445,9 +415,11 @@ fit_Y, fit_Y_const  = optimize.curve_fit(MSDfit, xtime, MSAD_Y[0:Nfit])[0]
 # Compute diffusion coefficients
 D_trans = np.stack([fit_n1, fit_n2, fit_n3]) / (2*exp3D_sec)
 D_rot = np.stack([fit_R, fit_P, fit_Y]) / (2*exp3D_sec)
+D_CO = fit_CO / (2*exp3D_sec)
 
 print('translational diffusion coefficients [um2/sec]:\n', D_trans)
 print('rotational diffusion coefficients [rad2/sec]:\n', D_rot)
+print('co-diffusion coefficients [um x rad]:\n', D_CO)
 
 # plot
 xaxis = np.arange(1,nInterval+1)
@@ -473,14 +445,42 @@ ax0.set_ylabel(r'MSD [$\mu m^2$]')
 # ax0.set_ylim([0, 0.5])
 # ax0.set_xlim([0, 3.2])
 ax0.legend(['$n_1$', '$n_2$', '$n_3$'], ncol=3)
-# ax0.set_title(thresholdFiles[whichFiles].name)
+ax0.set_title(thresholdFiles[whichFiles].name)
+
+# plot CO-MSD
+xaxis = np.arange(1,nInterval+1)
+plt.rcParams.update({'font.size': 18})
+fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
+ax0.plot(xaxis*exp3D_sec, CO_MSD,
+         c='k',marker="s",mfc='none',
+         ms=5,ls='None',alpha=1)   
+ax0.plot(xaxis*exp3D_sec, fit_CO_const + fit_CO*xaxis,
+         c='k',alpha=1,label='_nolegend_')
+ax0.set_xlabel(r'Lag time [sec]')
+ax0.set_ylabel(r'CO-MSD [$\mu m\times rad$]')
+ax0.set_title(thresholdFiles[whichFiles].name)
+
+# Compute A, B, D
+kB = 1.380649e-23  # J / K
+T = 273 + 25       # K
+
+# from bead measurement
+vis70 = 2.84e-3
+vis50 = 1.99e-3
+vis40 = 1.77e-3
+
+D_n1 = D_trans[0] * 1e-12
+D_n1_psi = D_CO * 1e-6
+D_psi = D_rot[0]
+
+A_per_vis = D_psi * kB * T / (D_n1 * D_psi - D_n1_psi**2) / vis50
+B_per_vis = -D_n1_psi * kB * T / (D_n1 * D_psi - D_n1_psi**2) / vis50
+D_per_vis = D_n1 * kB * T / (D_n1 * D_psi - D_n1_psi**2) / vis50
+
+print('propulsion matrix\n A/vis, B/vis, D/vis = %.2E %.2E %.2E'
+      %(A_per_vis, B_per_vis, D_per_vis))
 
 #%% Store tracking information to PKL
-D_trans = np.stack([fit_n1, fit_n2]) / (2*exp3D_sec)
-D_rot = np.stack([fit_Y]) / (2*exp3D_sec)
-print('D_trans [um2/sec]: ', D_trans)
-print('D_rot [rad2/sec]: ', D_rot)
-
 savingPKL = os.path.join(thresholdFiles[whichFiles].parent.parent,
                          'PKL-files',
                          thresholdFiles[whichFiles].name[:-4] + '.pkl')
@@ -492,14 +492,19 @@ data = {
         "cm": cm,
         "disp": disp,
         "disp_Ang": disp_Ang,
-        "MSD": np.stack([MSD_n1, MSD_n2],axis=1),
-        "MSAD": np.stack([MSAD_R, MSAD_P],axis=1),
+        "MSD": np.stack([MSD_n1, MSD_n2, MSD_n3],axis=1),
+        "MSAD": np.stack([MSAD_R, MSAD_P, MSAD_Y],axis=1),
+        "CO_MSD": CO_MSD,
         "D_trans": D_trans,
         "D_rot": D_rot,
+        "D_co": D_CO,
+        "A_per_vis": A_per_vis,
+        "B_per_vis": B_per_vis,
+        "D_per_vis": D_per_vis
         }
 with open(savingPKL, "wb") as f:
       pickle.dump(data, f)
-print('--> %s is saved in\n%s' %(os.path.basename(savingPKL), savingPKL))
+print('--> %s is saved in \n%s' %(os.path.basename(savingPKL), savingPKL))
 
 #%% MSAD: roll
 plt.rcParams.update({'font.size': 18})
