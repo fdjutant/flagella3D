@@ -123,21 +123,21 @@ ax.figure.savefig(pdfFolder + '\D-trans-MT.pdf')
 
 #%% rotation
 mean_PY = np.mean(Drot)
-std_PY = np.std(Drot)
+std_PY = sem(Drot)
 xlabel = ["90\% (w/v)"]
 
 plt.rcParams.update({'font.size': 22})
 fig, ax = plt.subplots(dpi=300, figsize=(4,6.2))
-sns.swarmplot(data=Drot,
-              color="C0", alpha=0.7, marker="o", size=12)
-ax.errorbar(xlabel, mean_PY, yerr=std_PY, marker="_", markersize=50,
-            color='k', linestyle="none", capsize=10, capthick=1.5)
+ax.errorbar(xlabel, mean_PY, yerr=std_PY,
+            marker="_", markersize=50,
+            color='k', linestyle="none",
+            capsize=10, capthick=1.5)
+sns.stripplot(data=Drot, color="k", alpha=0.5,
+              marker="^", size=15, jitter=0.08)
 ax.set_xticklabels(xlabel)
-# ax.set_title('Translation diffusion')
 ax.set_ylabel(r'$D_\beta$ [$\mu m^2$/sec]')
-# ax.set_xlabel(r'viscosity (mPa$\cdot$sec)')
 ax.set_xlabel(r'%(w/w) sucrose concentration')
-# ax.set_ylim([0.002, 0.008])
+plt.ylim([0, 0.01])
 plt.show()
 ax.figure.savefig(pdfFolder + '/D-rot.pdf')
 

@@ -197,7 +197,7 @@ length_diff_40 = np.stack([flagella_length_mean_40, flagella_length_std_40,
 length_diff_sorted_40 = length_diff_40[length_diff_40[:,0].argsort()]
 
 min_length_um = 6
-max_length_um = 20
+max_length_um = 10
 
 data_exclusion_40 = length_diff_sorted_40[min_length_um < length_diff_sorted_40[:,0]]
 data_exclusion_40 = data_exclusion_40[data_exclusion_40[:,0] < max_length_um]
@@ -205,6 +205,130 @@ data_exclusion_50 = length_diff_sorted_50[min_length_um < length_diff_sorted_50[
 data_exclusion_50 = data_exclusion_50[data_exclusion_50[:,0] < max_length_um]
 data_exclusion_70 = length_diff_sorted_70[min_length_um < length_diff_sorted_70[:,0]]
 data_exclusion_70 = data_exclusion_70[data_exclusion_70[:,0] < max_length_um]
+
+data_exclusion_all = np.concantenate([data_exclusion_40, data_exclusion_50,
+                                      data_exclusion_70])
+
+#%% translational diffusion
+print('for data 40, 50, 70')
+print('number of data = %d, %d, %d'
+      %(len(data_exclusion_40[:,2]), len(data_exclusion_50[:,2]),
+        len(data_exclusion_70[:,2])))
+print('trans-diffusion at n1 = %.3f(%.3f), %.3f(%.3f), %.3f(%.3f)'
+      %(np.mean(data_exclusion_40[:,2]), sem(data_exclusion_40[:,2]),
+        np.mean(data_exclusion_50[:,2]), sem(data_exclusion_50[:,2]),
+        np.mean(data_exclusion_70[:,2]), sem(data_exclusion_70[:,2])) )
+print('trans-diffusion at n2 = %.3f(%.3f), %.3f(%.3f), %.3f(%.3f)'
+      %(np.mean(data_exclusion_40[:,3]), sem(data_exclusion_40[:,3]),
+        np.mean(data_exclusion_50[:,3]), sem(data_exclusion_50[:,3]),
+        np.mean(data_exclusion_70[:,3]), sem(data_exclusion_70[:,3])) )
+print('trans-diffusion at n3 = %.3f(%.3f), %.3f(%.3f), %.3f(%.3f)'
+      %(np.mean(data_exclusion_40[:,4]), sem(data_exclusion_40[:,4]),
+        np.mean(data_exclusion_50[:,4]), sem(data_exclusion_50[:,4]),
+        np.mean(data_exclusion_70[:,4]), sem(data_exclusion_70[:,4])) )
+
+ratio40 = data_exclusion_40[:,2] /\
+          np.mean([data_exclusion_40[:,3],data_exclusion_40[:,4]],axis=0)
+ratio50 = data_exclusion_50[:,2] /\
+          np.mean([data_exclusion_50[:,3],data_exclusion_50[:,4]],axis=0)
+ratio70 = data_exclusion_70[:,2] /\
+          np.mean([data_exclusion_70[:,3],data_exclusion_70[:,4]],axis=0)          
+print('ratio of translational diffusion = %.2f(%.2f), %.2f(%.2f), %.2f(%.2f)'
+      %(np.mean(ratio40), sem(ratio40),
+        np.mean(ratio50), sem(ratio50),
+        np.mean(ratio70), sem(ratio70) ) )
+
+# average translation diffusion
+D_trans_40 = data_exclusion_40[:,2] + data_exclusion_40[:,3] + data_exclusion_40[:,4]
+D_trans_50 = data_exclusion_50[:,2] + data_exclusion_50[:,3] + data_exclusion_50[:,4]
+D_trans_70 = data_exclusion_70[:,2] + data_exclusion_70[:,3] + data_exclusion_70[:,4]
+print('total translation diffusion = %.3f(%.3f), %.3f(%.3f), %.3f(%.3f)'
+      %(np.mean(D_trans_40), sem(D_trans_40),
+        np.mean(D_trans_50), sem(D_trans_50),
+        np.mean(D_trans_70), sem(D_trans_70)))
+
+D_rot_40 = data_exclusion_40[:,5] + data_exclusion_40[:,6] + data_exclusion_40[:,7]
+D_rot_50 = data_exclusion_50[:,5] + data_exclusion_50[:,6] + data_exclusion_50[:,7]
+D_rot_70 = data_exclusion_70[:,5] + data_exclusion_70[:,6] + data_exclusion_70[:,7]
+print('total rotation diffusion = %.3f(%.3f), %.3f(%.3f), %.3f(%.3f)'
+      %(np.mean(D_rot_40), sem(D_rot_40),
+        np.mean(D_rot_50), sem(D_rot_50),
+        np.mean(D_rot_70), sem(D_rot_70)))
+
+#%% rotational diffusion
+print('rot-diffusion at n1 = %.3f(%.3f), %.3f(%.3f), %.3f(%.3f)'
+      %(np.mean(data_exclusion_40[:,5]), sem(data_exclusion_40[:,5]),
+        np.mean(data_exclusion_50[:,5]), sem(data_exclusion_50[:,5]),
+        np.mean(data_exclusion_70[:,5]), sem(data_exclusion_70[:,5])) )
+print('rot-diffusion at n2 = %.3f(%.3f), %.3f(%.3f), %.3f(%.3f)'
+      %(np.mean(data_exclusion_40[:,6]), sem(data_exclusion_40[:,6]),
+        np.mean(data_exclusion_50[:,6]), sem(data_exclusion_50[:,6]),
+        np.mean(data_exclusion_70[:,6]), sem(data_exclusion_70[:,6])) )
+print('rot-diffusion at n3 = %.3f(%.3f), %.3f(%.3f), %.3f(%.3f)'
+      %(np.mean(data_exclusion_40[:,7]), sem(data_exclusion_40[:,7]),
+        np.mean(data_exclusion_50[:,7]), sem(data_exclusion_50[:,7]),
+        np.mean(data_exclusion_70[:,7]), sem(data_exclusion_70[:,7])) )
+
+#%% Jitter plot: rotation diffusion
+mean_n1 = [np.mean(data_exclusion_40[:,5]),
+           np.mean(data_exclusion_50[:,5]),
+           np.mean(data_exclusion_70[:,5])]
+std_n1 = [sem(data_exclusion_40[:,5]),
+          sem(data_exclusion_50[:,5]),
+          sem(data_exclusion_70[:,5])]
+mean_n2 = [np.mean(np.mean([data_exclusion_40[:,6],
+                            data_exclusion_40[:,7]], axis=0)),
+           np.mean(np.mean([data_exclusion_50[:,6],
+                            data_exclusion_50[:,7]], axis=0)),
+           np.mean(np.mean([data_exclusion_70[:,6],
+                            data_exclusion_70[:,7]], axis=0))]
+std_n2 = [sem(np.mean([data_exclusion_40[:,6],
+                       data_exclusion_40[:,7]], axis=0)),
+          sem(np.mean([data_exclusion_50[:,6],
+                       data_exclusion_50[:,7]], axis=0)),
+          sem(np.mean([data_exclusion_70[:,6],
+                       data_exclusion_70[:,7]], axis=0))]
+xlabel = ["1.77", "1.96", "2.84"] 
+# xlabel = ["16.67%", "18.96%", "27.01%"]
+
+# Pitch and yaw
+plt.rcParams.update({'font.size': 28})
+fig, ax = plt.subplots(dpi=300, figsize=(10,6.2))
+ax.errorbar(xlabel, mean_n2, yerr=std_n2, marker="_", markersize=50,
+            color='k', linestyle="none", capsize=15)
+sns.stripplot(data=[data_exclusion_40[:,6],
+                    data_exclusion_50[:,6],
+                    data_exclusion_70[:,6]],
+              color="C1", alpha=0.5,
+              marker="o", size=15, jitter=0.08)
+sns.stripplot(data=[data_exclusion_40[:,7],
+                    data_exclusion_50[:,7],
+                    data_exclusion_70[:,7]],
+              color="C2", alpha=0.5,
+              marker="o", size=15, jitter=0.08)
+ax.set_xticklabels(xlabel)
+ax.set_ylabel(r'$D_\beta$ and $D_\gamma$ [rad$^2$/sec]')
+ax.set_xlabel(r'viscosity (mPa$\cdot$sec)')
+# ax.set_xlabel(r'%(w/w) sucrose concentration')
+ax.set_ylim([0, 0.05])
+ax.figure.savefig(pdfFolder + '/Jitter-Drot-PY.pdf')
+
+
+#%% Roll
+plt.rcParams.update({'font.size': 28})
+fig, ax = plt.subplots(dpi=300, figsize=(10,6.2))
+ax.errorbar(xlabel, mean_n1, yerr=std_n1, marker="_", markersize=50,
+            color='k', linestyle="none", capsize=15)
+sns.stripplot(data=[D_rot_40[:,0], D_rot_50[:,0], D_rot_70[:,0]],
+              color="purple", alpha=0.5,
+              marker="o", size=15, jitter=0.08)
+ax.set_xticklabels(xlabel)
+ax.set_ylabel(r'$D_\psi$ [rad$^2$/sec]')
+ax.set_xlabel(r'viscosity (mPa$\cdot$sec)')
+# ax.set_xlabel(r'%(w/w) sucrose concentration')
+ax.set_ylim([0, 2.5])
+plt.show()
+ax.figure.savefig(pdfFolder + '/Jitter-Drot-R.pdf')
 
 #%% Jitter plot: translation diffusion
 mean_n1 = [np.mean(data_exclusion_40[:,2]),
@@ -260,65 +384,6 @@ ax.set_xlabel(r'viscosity (mPa$\cdot$sec)')
 ax.set_ylim([0, 0.25])
 ax.figure.savefig(pdfFolder + '/Jitter-Dtrans.pdf')
 
-#%% Jitter plot: rotation diffusion
-mean_n1 = [np.mean(data_exclusion_40[:,5]),
-           np.mean(data_exclusion_50[:,5]),
-           np.mean(data_exclusion_70[:,5])]
-std_n1 = [sem(data_exclusion_40[:,5]),
-          sem(data_exclusion_50[:,5]),
-          sem(data_exclusion_70[:,5])]
-mean_n2 = [np.mean(np.mean([data_exclusion_40[:,6],
-                            data_exclusion_40[:,7]], axis=0)),
-           np.mean(np.mean([data_exclusion_50[:,6],
-                            data_exclusion_50[:,7]], axis=0)),
-           np.mean(np.mean([data_exclusion_70[:,6],
-                            data_exclusion_70[:,7]], axis=0))]
-std_n2 = [sem(np.mean([data_exclusion_40[:,6],
-                       data_exclusion_40[:,7]], axis=0)),
-          sem(np.mean([data_exclusion_50[:,6],
-                       data_exclusion_50[:,7]], axis=0)),
-          sem(np.mean([data_exclusion_70[:,6],
-                       data_exclusion_70[:,7]], axis=0))]
-xlabel = ["1.77", "1.96", "2.84"] 
-# xlabel = ["16.67%", "18.96%", "27.01%"]
-
-#%% Roll
-plt.rcParams.update({'font.size': 28})
-fig, ax = plt.subplots(dpi=300, figsize=(10,6.2))
-ax.errorbar(xlabel, mean_n1, yerr=std_n1, marker="_", markersize=50,
-            color='k', linestyle="none", capsize=15)
-sns.stripplot(data=[D_rot_40[:,0], D_rot_50[:,0], D_rot_70[:,0]],
-              color="purple", alpha=0.5,
-              marker="o", size=15, jitter=0.08)
-ax.set_xticklabels(xlabel)
-ax.set_ylabel(r'$D_\psi$ [rad$^2$/sec]')
-ax.set_xlabel(r'viscosity (mPa$\cdot$sec)')
-# ax.set_xlabel(r'%(w/w) sucrose concentration')
-ax.set_ylim([0, 2.5])
-plt.show()
-ax.figure.savefig(pdfFolder + '/Jitter-Drot-R.pdf')
-
-# Pitch and yaw
-plt.rcParams.update({'font.size': 28})
-fig, ax = plt.subplots(dpi=300, figsize=(10,6.2))
-ax.errorbar(xlabel, mean_n2, yerr=std_n2, marker="_", markersize=50,
-            color='k', linestyle="none", capsize=15)
-sns.stripplot(data=[data_exclusion_40[:,6],
-                    data_exclusion_50[:,6],
-                    data_exclusion_70[:,6]],
-              color="C1", alpha=0.5,
-              marker="o", size=15, jitter=0.08)
-sns.stripplot(data=[data_exclusion_40[:,7],
-                    data_exclusion_50[:,7],
-                    data_exclusion_70[:,7]],
-              color="C2", alpha=0.5,
-              marker="o", size=15, jitter=0.08)
-ax.set_xticklabels(xlabel)
-ax.set_ylabel(r'$D_\beta$ and $D_\gamma$ [rad$^2$/sec]')
-ax.set_xlabel(r'viscosity (mPa$\cdot$sec)')
-# ax.set_xlabel(r'%(w/w) sucrose concentration')
-ax.set_ylim([0, 0.05])
-ax.figure.savefig(pdfFolder + '/Jitter-Drot-PY.pdf')
 
 #%% Flagella length
 flagella_all_length = np.concatenate([flagella_length_mean_70,

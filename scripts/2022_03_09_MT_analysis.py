@@ -266,7 +266,7 @@ viewer.scale_bar.unit='um'
 viewer.scale_bar.position='top_right'
 viewer.axes.visible = True
 napari.run()
-
+   
 #%% Perform vector analysis & MSD
 # initialize msd
 msd_N = []; msd_S1 = []; msd_S2 = []; msd_NR = []
