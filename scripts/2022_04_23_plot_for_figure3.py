@@ -8,6 +8,7 @@ plt.rcParams.update({'font.size': 10})
 from pathlib import Path
 import os.path
 import pickle
+from scipy import optimize
 from matplotlib.transforms import Affine2D
 import seaborn as sns
 from scipy.stats import sem
@@ -211,9 +212,10 @@ data_exclusion_all = np.concatenate([data_exclusion_40, data_exclusion_50,
 
 #%% translational diffusion
 print('for data 40, 50, 70')
-print('number of data = %d, %d, %d'
+print('number of data = %d, %d, %d with a total of %d'
       %(len(data_exclusion_40[:,2]), len(data_exclusion_50[:,2]),
-        len(data_exclusion_70[:,2])))
+        len(data_exclusion_70[:,2]), 
+        len(data_exclusion_all[:,2])) )
 print('trans-diffusion at n1 = %.3f(%.3f), %.3f(%.3f), %.3f(%.3f)'
       %(np.mean(data_exclusion_40[:,2]), sem(data_exclusion_40[:,2]),
         np.mean(data_exclusion_50[:,2]), sem(data_exclusion_50[:,2]),
@@ -227,6 +229,13 @@ print('trans-diffusion at n3 = %.3f(%.3f), %.3f(%.3f), %.3f(%.3f)'
         np.mean(data_exclusion_50[:,4]), sem(data_exclusion_50[:,4]),
         np.mean(data_exclusion_70[:,4]), sem(data_exclusion_70[:,4])) )
 
+print('length [um] = %.3f(%.3f), %.3f(%.3f), %.3f(%.3f), all = %.3f(%.3f)'
+      %(np.mean(data_exclusion_40[:,0]), sem(data_exclusion_40[:,0]),
+        np.mean(data_exclusion_50[:,0]), sem(data_exclusion_50[:,0]),
+        np.mean(data_exclusion_70[:,0]), sem(data_exclusion_70[:,0]),
+        np.mean(data_exclusion_all[:,0]), sem(data_exclusion_all[:,0])
+        ) )
+
 ratio40 = data_exclusion_40[:,2] /\
           np.mean([data_exclusion_40[:,3],data_exclusion_40[:,4]],axis=0)
 ratio50 = data_exclusion_50[:,2] /\
@@ -237,6 +246,23 @@ print('ratio of translational diffusion = %.2f(%.2f), %.2f(%.2f), %.2f(%.2f)'
       %(np.mean(ratio40), sem(ratio40),
         np.mean(ratio50), sem(ratio50),
         np.mean(ratio70), sem(ratio70) ) )
+
+D_trans40_n1 = data_exclusion_40[:,2]
+D_trans50_n1 = data_exclusion_50[:,2]
+D_trans70_n1 = data_exclusion_70[:,2]
+
+D_trans40_n2n3 = np.mean([data_exclusion_40[:,3],data_exclusion_40[:,4]],axis=0)
+D_trans50_n2n3 = np.mean([data_exclusion_50[:,3],data_exclusion_50[:,4]],axis=0)
+D_trans70_n2n3 = np.mean([data_exclusion_70[:,3],data_exclusion_70[:,4]],axis=0)
+
+D_rot40_n1 = data_exclusion_40[:,5]
+D_rot50_n1 = data_exclusion_50[:,5]
+D_rot70_n1 = data_exclusion_70[:,5]
+
+D_rot40_n2n3 = np.mean([data_exclusion_40[:,6],data_exclusion_40[:,7]],axis=0)
+D_rot50_n2n3 = np.mean([data_exclusion_50[:,6],data_exclusion_50[:,7]],axis=0)
+D_rot70_n2n3 = np.mean([data_exclusion_70[:,6],data_exclusion_70[:,7]],axis=0)
+
 
 # average translation diffusion
 D_trans_40 = data_exclusion_40[:,2] + data_exclusion_40[:,3] + data_exclusion_40[:,4]
@@ -410,3 +436,108 @@ ax1.set_ylabel(r'Cumulative Probability')
 ax1.set_ylim([0, 1])
 ax1.set_xlim([4, 13])
 ax1.figure.savefig(pdfFolder + '/Flagella-length-CDF.pdf')
+
+#%% Fitting MSD and MSAD
+whichFiles = 5
+nInterval = 50
+xaxis = np.arange(1,nInterval+1)
+
+MSD_n1 = MSD_70[whichFiles,:,0]
+MSD_n2 = MSD_70[whichFiles,:,1]
+MSD_n3 = MSD_70[whichFiles,:,2]
+CO_MSD = CO_MSD_70[whichFiles]
+
+
+# Fit MSD with y = Const + B*x for N, S, NR, PY, R
+Nfit = 10
+xtime = np.linspace(1,Nfit,Nfit)
+def MSDfit(x, a, b): return b + a * x  
+
+# fit MSD and MSAD
+fit_n1, fit_n1_const  = optimize.curve_fit(MSDfit, xtime, MSD_n1[0:Nfit])[0]
+fit_n2, fit_n2_const  = optimize.curve_fit(MSDfit, xtime, MSD_n2[0:Nfit])[0]
+fit_n3, fit_n3_const  = optimize.curve_fit(MSDfit, xtime, MSD_n3[0:Nfit])[0]
+
+fit_CO, fit_CO_const = optimize.curve_fit(MSDfit, xtime, CO_MSD[0:Nfit])[0]
+
+markerSize = 8
+
+# MSD
+plt.rcParams.update({'font.size': 18})
+fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
+ax0.plot(xaxis*exp3D_sec, MSD_n1,
+         c='purple',marker="s",mfc='none',
+         ms=markerSize,ls='None',alpha=1)   
+ax0.plot(xaxis*exp3D_sec, MSD_n2,
+          c='C1',marker="s",mfc='none',
+          ms=markerSize,ls='None',alpha=1)
+ax0.plot(xaxis*exp3D_sec, MSD_n3,
+          c='C2',marker="s",mfc='none',
+          ms=markerSize,ls='None',alpha=1)
+ax0.plot(xaxis*exp3D_sec,fit_n1_const + fit_n1*xaxis,
+          c='purple',alpha=1,label='_nolegend_')
+ax0.plot(xaxis*exp3D_sec,fit_n2_const + fit_n2*xaxis,
+          c='C1',alpha=1,label='_nolegend_')
+ax0.plot(xaxis*exp3D_sec,fit_n3_const + fit_n3*xaxis,
+          c='C2',alpha=1,label='_nolegend_')
+ax0.set_xlabel(r'Lag time [sec]')
+ax0.set_ylabel(r'MSD [$\mu m^2$]')
+ax0.set_ylim([0, 0.125])
+ax0.set_xlim([0, 1.5])
+# ax0.set_yticks([0,1,2,3])
+ax0.figure.savefig(pdfFolder + '/fig3-MSD.pdf')
+
+#%% MSAD: Roll
+whichFiles = 4
+nInterval = 50
+xaxis = np.arange(1,nInterval+1)
+MSAD_R = MSAD_70[whichFiles,:,0]
+MSAD_P = MSAD_70[whichFiles,:,1]
+MSAD_Y = MSAD_70[whichFiles,:,2]
+fit_R,  fit_R_const   = optimize.curve_fit(MSDfit, xtime, MSAD_R[0:Nfit])[0]
+fit_P,  fit_P_const  = optimize.curve_fit(MSDfit, xtime, MSAD_P[0:Nfit])[0]
+fit_Y,  fit_Y_const  = optimize.curve_fit(MSDfit, xtime, MSAD_Y[0:Nfit])[0]
+
+plt.rcParams.update({'font.size': 18})
+fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
+ax0.plot(xaxis*exp3D_sec, MSAD_R,
+         c='purple',marker="o",mfc='none',
+         ms=markerSize,ls='None',alpha=1)   
+ax0.plot(xaxis*exp3D_sec, fit_R_const + fit_R*xaxis,
+         c='purple',alpha=1,label='_nolegend_')
+ax0.plot(xaxis*exp3D_sec, MSAD_P,
+          c='C1',marker="o",mfc='none',
+          ms=markerSize,ls='None',alpha=1)
+ax0.plot(xaxis*exp3D_sec, MSAD_Y,
+          c='C2',marker="o",mfc='none',
+          ms=markerSize,ls='None',alpha=1)
+ax0.plot(xaxis*exp3D_sec,fit_P_const + fit_P*xaxis,
+          c='C1',alpha=1,label='_nolegend_')
+ax0.plot(xaxis*exp3D_sec,fit_Y_const + fit_Y*xaxis,
+          c='C2',alpha=1,label='_nolegend_')
+ax0.set_xlabel(r'Lag time [sec]')
+ax0.set_ylabel(r'MSAD [rad$^2$]')
+ax0.set_ylim([-0.1, 2])
+ax0.set_xlim([0, 1.5])
+# ax0.set_yticks([0,1,2,3])
+# ax0.legend(['$R$'])
+ax0.figure.savefig(pdfFolder + '/fig3-MSAD-R.pdf')
+
+# MSAD: pitch/yaw
+fig0,ax0 = plt.subplots(dpi=300, figsize=(6,5))
+ax0.plot(xaxis*exp3D_sec, MSAD_P,
+          c='C1',marker="o",mfc='none',
+          ms=markerSize,ls='None',alpha=1)
+ax0.plot(xaxis*exp3D_sec, MSAD_Y,
+          c='C2',marker="o",mfc='none',
+          ms=markerSize,ls='None',alpha=1)
+ax0.plot(xaxis*exp3D_sec,fit_P_const + fit_P*xaxis,
+          c='C1',alpha=1,label='_nolegend_')
+ax0.plot(xaxis*exp3D_sec,fit_Y_const + fit_Y*xaxis,
+          c='C2',alpha=1,label='_nolegend_')
+ax0.set_xlabel(r'Lag time [sec]')
+ax0.set_ylabel(r'MSAD [rad$^2$]')
+ax0.set_ylim([0, 0.02])
+ax0.set_xlim([0, 1.5])
+# ax0.legend(['$P$', '$Y$'], ncol=2)
+ax0.figure.savefig(pdfFolder + '/fig3-MSAD-PY.pdf')
