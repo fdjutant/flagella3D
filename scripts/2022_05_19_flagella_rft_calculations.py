@@ -7,8 +7,9 @@ Namba et al https://doi.org/10.1038/342648a0
 import numpy as np
 
 # helix parameter estimates for this experiment
-l = 7 # length in um
+l = 7.7 # length in um
 rh = 0.25 # helical radius
+dh = 2 * rh
 rf = 0.01 # filament radius
 pitch = 2. # pitch in um
 theta = np.arctan(2*np.pi * rh / pitch) # pitch angle
@@ -44,18 +45,18 @@ print(f"filament radius={rf:0.3f}um")
 print(f"helix pitch={pitch:0.3f}um")
 print(f"helix pitch angle={theta * 180/np.pi:0.3f}deg")
 
-print("non-dimensionalized values using both R and L appropriately")
+print("non-dimensionalized values using both dh and L")
 print("Hancock RFT:")
 print(f"A*={A(cn_h, ct_h) / l:.3f}")
-print(f"D*={D(cn_h, ct_h) / (l * rh**2):.3f}")
-print(f"B*={B(cn_h, ct_h) / (l * rh):.3f}")
+print(f"D*={D(cn_h, ct_h) / (l * dh**2):.3f}")
+print(f"B*={B(cn_h, ct_h) / (l * dh):.3f}")
 print(f"eff={B(cn_h, ct_h)**2 / (4 * A(cn_h, ct_h) * D(cn_h, ct_h)):.3f}")
 
 
 print("Lighthill RFT:")
 print(f"A*={A(cn_l, ct_l) / l:.3f}")
-print(f"D*={D(cn_l, ct_l) / (l * rh**2):.3f}")
-print(f"B*={B(cn_l, ct_l) / (l * rh):.3f}")
+print(f"D*={D(cn_l, ct_l) / (l * dh**2):.3f}")
+print(f"B*={B(cn_l, ct_l) / (l * dh):.3f}")
 print(f"eff={B(cn_l, ct_l)**2 / (4 * A(cn_l, ct_l) * D(cn_l, ct_l)):.3f}")
 
 print("non-dimensionalized values using Rodenborn approach")
