@@ -119,13 +119,13 @@ diff_matrix[3, 0] = 0
 diff_matrix[0, 3] = 0
 
 # time step
-dt = 2e-3 * (15 / 0.4) / 10 / 10
+dt = 2e-3 * (15 / 0.4) / 10
 #
 dtau23 = 1 / np.mean([diff_matrix[4, 4], diff_matrix[5, 5]])
 #nframes = 30000000 #* 10
-nframes = 300000
+nframes = 30000
 times = np.arange(nframes) * dt
-ntrajectories = 1000
+ntrajectories = 10000
 
 
 # ##################################
@@ -174,76 +174,83 @@ for ii in range(ntrajectories):
     n1s, n2s, n3s = angles2axes(n1, n2, das, nframes)
     nvecs[ii] = np.stack((n1s, n2s, n3s), axis=-1)
 
-    dxyz[ii] = np.sum(nvecs * np.expand_dims(d123, axis=-2), axis=-1)
-    pos_xyz[ii] = np.cumsum(dxyz, axis=0)
+    dxyz[ii] = np.sum(nvecs[ii] * np.expand_dims(d123, axis=-2), axis=-1)
+    pos_xyz[ii] = np.cumsum(dxyz[ii], axis=0)
 
 print("")
 
-# time dependent diffusion constants
-ns = np.round(np.logspace(np.log10(dtau23 / (100*dt)), np.log10(len(times)), 100)).astype(int)
-diff_versus_time_lab = np.zeros((len(ns), 3, 3))
-diff_versus_time_lab_unc = np.zeros((len(ns), 3, 3))
-non_gauss_param_time_lab = np.zeros((len(ns), 3))
+msd_const_angle_xyz = np.mean(pos_xyz**2, axis=0)
+fourth_moment_const_angle_xyz = np.mean(pos_xyz**4, axis=0)
+non_gauss_param_const_angle_xyz = fourth_moment_const_angle_xyz / (3 * msd_const_angle_xyz**2) - 1
 
-diff_versus_time_body = np.zeros((len(ns), 6, 6))
-diff_versus_time_body_unc = np.zeros((len(ns), 6, 6))
-non_gauss_param_time_body = np.zeros((len(ns), 6))
+plt.plot(times, non_gauss_param_const_angle_xyz, '.')
 
-for ii in range(len(ns)):
-    pos_now = pos_xyz[:ns[ii]]
-    steps_now = pos_now[1:] - pos_now[:-1]
+if False:
+    # time dependent diffusion constants
+    ns = np.round(np.logspace(np.log10(dtau23 / (100*dt)), np.log10(len(times)), 100)).astype(int)
+    diff_versus_time_lab = np.zeros((len(ns), 3, 3))
+    diff_versus_time_lab_unc = np.zeros((len(ns), 3, 3))
+    non_gauss_param_time_lab = np.zeros((len(ns), 3))
 
-    for aa in range(3):
-        for bb in range(3):
-            second_moment = np.mean(steps_now[:, aa] * steps_now[:, bb], axis=0)
-            diff_versus_time_lab[ii, aa, bb] = second_moment / (2 * dt)
-            diff_versus_time_lab_unc[ii, aa, bb] = np.std(steps_now[:, aa] * steps_now[:, bb], axis=0) / (2 * dt) / np.sqrt(ns[ii] - 1)
+    diff_versus_time_body = np.zeros((len(ns), 6, 6))
+    diff_versus_time_body_unc = np.zeros((len(ns), 6, 6))
+    non_gauss_param_time_body = np.zeros((len(ns), 6))
 
-            if aa == bb:
-                fourth_moment = np.mean(steps_now[:, aa]**4, axis=0)
-                non_gauss_param_time_lab[ii, aa] = fourth_moment / (3 * second_moment**2) - 1
+    for ii in range(len(ns)):
+        pos_now = pos_xyz[:ns[ii]]
+        steps_now = pos_now[1:] - pos_now[:-1]
 
-    pos_now_123 = coords_body[:ns[ii]]
-    steps_now_123 = pos_now_123[1:] - pos_now_123[:-1]
-    for aa in range(6):
-        for bb in range(6):
-            second_moment = np.mean(steps_now_123[:, aa] * steps_now_123[:, bb], axis=0)
-            diff_versus_time_body[ii, aa, bb] = second_moment / (2*dt)
-            diff_versus_time_body_unc[ii, aa, bb] = np.std(steps_now_123[:, aa] * steps_now_123[:, bb], axis=0) / (2 * dt) / np.sqrt(ns[ii] - 1)
+        for aa in range(3):
+            for bb in range(3):
+                second_moment = np.mean(steps_now[:, aa] * steps_now[:, bb], axis=0)
+                diff_versus_time_lab[ii, aa, bb] = second_moment / (2 * dt)
+                diff_versus_time_lab_unc[ii, aa, bb] = np.std(steps_now[:, aa] * steps_now[:, bb], axis=0) / (2 * dt) / np.sqrt(ns[ii] - 1)
 
-            if aa == bb:
-                fourth_moment = np.mean(steps_now_123[:, aa]**4, axis=0)
-                non_gauss_param_time_body[ii, aa] = fourth_moment / (3* second_moment**2) - 1
+                if aa == bb:
+                    fourth_moment = np.mean(steps_now[:, aa]**4, axis=0)
+                    non_gauss_param_time_lab[ii, aa] = fourth_moment / (3 * second_moment**2) - 1
 
+        pos_now_123 = coords_body[:ns[ii]]
+        steps_now_123 = pos_now_123[1:] - pos_now_123[:-1]
+        for aa in range(6):
+            for bb in range(6):
+                second_moment = np.mean(steps_now_123[:, aa] * steps_now_123[:, bb], axis=0)
+                diff_versus_time_body[ii, aa, bb] = second_moment / (2*dt)
+                diff_versus_time_body_unc[ii, aa, bb] = np.std(steps_now_123[:, aa] * steps_now_123[:, bb], axis=0) / (2 * dt) / np.sqrt(ns[ii] - 1)
 
-
-figh = plt.figure()
-ax = figh.add_subplot(1, 2, 1)
-ax.set_title("diffusion constants, lab frame, versus time")
-ax.set_xlabel(r"time ($\tau_{23}$)")
-for ii in range(3):
-    ax.errorbar(ns * dt / dtau23, diff_versus_time_lab[:, ii, ii], yerr=diff_versus_time_lab_unc[:, ii, ii])
-ax.set_xscale('log')
-
-ax = figh.add_subplot(1, 2, 2)
-ax.set_title("non-gaussian paramter versus time")
-ax.set_xlabel(r"time ($\tau_{23}$)")
-for ii in range(3):
-    ax.semilogx(ns * dt / dtau23, non_gauss_param_time_lab[:, ii])
+                if aa == bb:
+                    fourth_moment = np.mean(steps_now_123[:, aa]**4, axis=0)
+                    non_gauss_param_time_body[ii, aa] = fourth_moment / (3* second_moment**2) - 1
 
 
-figh = plt.figure()
-ax = figh.add_subplot(1, 2, 1)
-ax.set_title("diffusion constants, body frame, versus time")
-ax.set_xlabel(r"time ($\tau_{23}$)")
-ax.set_xscale('log')
-for ii in range(6):
-    ax.errorbar(ns * dt / dtau23, diff_versus_time_body[:, ii, ii], yerr=diff_versus_time_body_unc[:, ii, ii])
 
-ax = figh.add_subplot(1, 2, 2)
-ax.set_title("non-gaussian paramter versus time")
-ax.set_xlabel(r"time ($\tau_{23}$)")
-for ii in range(6):
-    ax.semilogx(ns * dt / dtau23, non_gauss_param_time_body[:, ii])
+    figh = plt.figure()
+    ax = figh.add_subplot(1, 2, 1)
+    ax.set_title("diffusion constants, lab frame, versus time")
+    ax.set_xlabel(r"time ($\tau_{23}$)")
+    for ii in range(3):
+        ax.errorbar(ns * dt / dtau23, diff_versus_time_lab[:, ii, ii], yerr=diff_versus_time_lab_unc[:, ii, ii])
+    ax.set_xscale('log')
+
+    ax = figh.add_subplot(1, 2, 2)
+    ax.set_title("non-gaussian paramter versus time")
+    ax.set_xlabel(r"time ($\tau_{23}$)")
+    for ii in range(3):
+        ax.semilogx(ns * dt / dtau23, non_gauss_param_time_lab[:, ii])
+
+
+    figh = plt.figure()
+    ax = figh.add_subplot(1, 2, 1)
+    ax.set_title("diffusion constants, body frame, versus time")
+    ax.set_xlabel(r"time ($\tau_{23}$)")
+    ax.set_xscale('log')
+    for ii in range(6):
+        ax.errorbar(ns * dt / dtau23, diff_versus_time_body[:, ii, ii], yerr=diff_versus_time_body_unc[:, ii, ii])
+
+    ax = figh.add_subplot(1, 2, 2)
+    ax.set_title("non-gaussian paramter versus time")
+    ax.set_xlabel(r"time ($\tau_{23}$)")
+    for ii in range(6):
+        ax.semilogx(ns * dt / dtau23, non_gauss_param_time_body[:, ii])
 
 

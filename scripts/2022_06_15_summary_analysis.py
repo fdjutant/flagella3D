@@ -31,6 +31,21 @@ patterns = ["suc40*", "suc50*", "suc70*"]
 xlims = np.array([0.00166, 0.00295]) * 1e3
 xtics = np.array([0.00177, 0.00199, 0.00284]) * 1e3
 
+# functions converting between unit vector and angles
+def get_angles(vec):
+    phi = np.arctan2(vec[1], vec[0])
+
+    if np.abs(vec[0]) > 1e-12:
+        theta = np.arctan2(vec[0] / np.cos(phi), vec[2])
+    else:
+        theta = np.arctan2(vec[1] / np.sin(phi), vec[2])
+
+    return phi, theta
+
+
+def get_vector(phi, theta):
+    return np.array([np.cos(phi) * np.sin(theta), np.sin(phi) * np.sin(theta), np.cos(theta)])
+
 for n_msd_points_used_in_fit in pts_in_fit:
     figh_lab = plt.figure(figsize=(25, 15))
     figh_lab.suptitle(f"Diffusion and codiffusion coefficients in lab frame, MSD fits use the first {n_msd_points_used_in_fit:d} points",
@@ -87,7 +102,7 @@ for n_msd_points_used_in_fit in pts_in_fit:
 
         thetas = []
         phis = []
-        n_time_lag_max_moments = 100
+        n_time_lag_max_moments = 180
         diff_coeffs_lab = np.zeros((3, 3, len(data_files)))
         diff_coeffs_unc_lab = np.zeros(diff_coeffs_lab.shape)
         non_gauss_coeff_lab = np.zeros((3, n_time_lag_max_moments, len(data_files)))
@@ -102,13 +117,18 @@ for n_msd_points_used_in_fit in pts_in_fit:
 
             diff_coeffs_lab[:, :, jj] = data.diffusion_constants_lab[:, :, n_msd_points_used_in_fit]
             diff_coeffs_unc_lab[:, :, jj] = data.diffusion_constants_unc_lab[:, :, n_msd_points_used_in_fit]
-            for dd in range(3):
-                non_gauss_coeff_lab[dd, :, jj] = np.array(data.fourth_moments_lab[dd, :n_time_lag_max_moments]) / (3 * np.array(data.msds_lab[dd, dd, :n_time_lag_max_moments]) ** 2) - 1
 
             diff_coeffs_body[:, :, jj] = data.diffusion_constants_body[..., n_msd_points_used_in_fit]
             diff_coeffs_unc_body[:, :, jj] = data.diffusion_constants_unc_body[..., n_msd_points_used_in_fit]
+
+            # compute non gaussian coefficients
+            for dd in range(3):
+                non_gauss_coeff_lab[dd, :, jj] = np.array(data.fourth_moments_lab[dd, :n_time_lag_max_moments]) / \
+                                                 (3 * np.array(data.msds_lab[dd, dd, :n_time_lag_max_moments]) ** 2) - 1
+
             for dd in range(6):
-                non_gauss_coeff_body[dd, :, jj] = np.array(data.fourth_moments_body[dd, :n_time_lag_max_moments]) / (3 * np.array(data.msds_body[dd, dd, :n_time_lag_max_moments]) ** 2) - 1
+                non_gauss_coeff_body[dd, :, jj] = np.array(data.fourth_moments_body[dd, :n_time_lag_max_moments]) / \
+                                                  (3 * np.array(data.msds_body[dd, dd, :n_time_lag_max_moments]) ** 2) - 1
 
             prop_mats[:, :, jj] = data.propulsion_matrix[..., n_msd_points_used_in_fit]
 
@@ -116,20 +136,6 @@ for n_msd_points_used_in_fit in pts_in_fit:
             viscosities[ii] = visc
 
             n1s = np.array(data.n1)
-
-            def get_angles(vec):
-                phi = np.arctan2(vec[1], vec[0])
-
-                if np.abs(vec[0]) > 1e-12:
-                    theta = np.arctan2(vec[0] / np.cos(phi), vec[2])
-                else:
-                    theta = np.arctan2(vec[1] / np.sin(phi), vec[2])
-
-                return phi, theta
-
-
-            def get_vector(phi, theta):
-                return np.array([np.cos(phi) * np.sin(theta), np.sin(phi) * np.sin(theta), np.cos(theta)])
 
             phis_now = np.zeros(len(n1s))
             thetas_now = np.zeros(len(n1s))
@@ -151,7 +157,7 @@ for n_msd_points_used_in_fit in pts_in_fit:
         figh_angles.savefig(data_dir / f"angular_distribution_pattern={p.replace('*', ''):s}.png")
 
         # plot lab frame non-gaussian parameters
-        figh_nongauss = plt.figure(figsize=(25, 15))
+        figh_nongauss = plt.figure(figsize=(25, 5))
         figh_nongauss.suptitle(f"Non-Gaussian parameters, lab frame, pattern = {p:s}")
 
         lag_time = np.arange(1, non_gauss_coeff_lab.shape[1] + 1) * data.attrs["volumeteric_exposure_time_ms"] * 1e-3
@@ -166,7 +172,7 @@ for n_msd_points_used_in_fit in pts_in_fit:
 
 
         # plot body-frame frame non-gaussian parameters
-        figh_nongauss_body = plt.figure(figsize=(25, 15))
+        figh_nongauss_body = plt.figure(figsize=(25, 5))
         figh_nongauss_body.suptitle(f"Non-Gaussian parameters, body frame, pattern = {p:s}")
 
         lag_time = np.arange(1, non_gauss_coeff_body.shape[1] + 1) * data.attrs["volumeteric_exposure_time_ms"] * 1e-3
