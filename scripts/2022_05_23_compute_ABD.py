@@ -274,7 +274,7 @@ D_over_vis = np.array([0.076,0.06,0.031,0.053,0.13]) * 1e-6 * (6*np.pi)    # [m^
 length_wire = np.array([5.2,7.8,9.4,3.1,7.5]) * 1e-2
 length_over_wavelength = np.array([5,5,5,3,7])
 pitch_angle_radian = np.radians(np.array([55,39,20,55,56]))
-diameter_wire = length_wire / (np.pi * np.tan(pitch_angle_radian))
+diameter_wire = length_wire / (np.pi * np.tan(pitch_angle_radian)) # todo: this calculation of diameter is not right
 
 Astar_over_vis = A_over_vis / length_wire
 Bstar_over_vis = B_over_vis / (length_wire * diameter_wire)
