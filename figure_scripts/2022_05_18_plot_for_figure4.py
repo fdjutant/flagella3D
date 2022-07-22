@@ -1,16 +1,19 @@
 #%% Import all necessary libraries
-import sys
-sys.path.insert(0, './modules')
+#import sys
+#sys.path.insert(0, './modules')
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['text.usetex'] = True
 plt.rcParams.update({'font.size': 10})
-from pathlib import Path
 import os.path
 import pickle
+from pathlib import Path
 from matplotlib.transforms import Affine2D
 import seaborn as sns
 from scipy.stats import sem
+import datetime
+
+tstamp = datetime.datetime.now().strftime('%Y_%m_%d_%H;%M;%S')
 
 # time settings in the light sheet
 pxum = 0.115
@@ -21,16 +24,20 @@ exp3D_sec = 1e-3 * camExposure_ms * (sweep_um*1e3/stepsize_nm)
 pxum = 0.115
 
 # Loading pickle files
-this_file_dir = os.path.join(os.path.dirname(os.path.abspath("./")),
-                            'Dropbox (ASU)','Research')
-pklFolder = os.path.join(this_file_dir,
-                          'DNA-Rotary-Motor', 'Helical-nanotubes',
-                          'Light-sheet-OPM', 'Result-data',
-                          'Flagella-data', 'PKL-files')
-pdfFolder = os.path.join(this_file_dir,
-                          'DNA-Rotary-Motor', 'Helical-nanotubes',
-                          'Light-sheet-OPM', 'Result-data',
-                          'Flagella-data', 'various-plots')
+# this_file_dir = os.path.join(os.path.dirname(os.path.abspath("./")),
+#                             'Dropbox (ASU)','Research')
+# pklFolder = os.path.join(this_file_dir,
+#                           'DNA-Rotary-Motor', 'Helical-nanotubes',
+#                           'Light-sheet-OPM', 'Result-data',
+#                           'Flagella-data', 'PKL-files')
+# pdfFolder = os.path.join(this_file_dir,
+#                           'DNA-Rotary-Motor', 'Helical-nanotubes',
+#                           'Light-sheet-OPM', 'Result-data',
+#                           'Flagella-data', 'various-plots')
+
+pklFolder = Path(r"\\10.206.26.21\flagella_project\PKL-files")
+pdfFolder = Path(r"\\10.206.26.21\flagella_project\various-plots")
+
 pklFiles70 = list(Path(pklFolder).glob("suc70*.pkl"))
 pklFiles50 = list(Path(pklFolder).glob("suc50*.pkl"))
 pklFiles40 = list(Path(pklFolder).glob("suc40*.pkl"))
@@ -185,7 +192,7 @@ flagella_all_length = np.concatenate([flagella_length_mean_70,
                                       flagella_length_mean_50,
                                       flagella_length_mean_40])
 print('flagella_mean = %.2f with sem = %.2f'
-      %(np.mean(flagella_all_length), sem(flagella_all_length)) )
+      % (np.mean(flagella_all_length), sem(flagella_all_length)) )
 
 plt.rcParams.update({'font.size': 28})
 fig, ax = plt.subplots(dpi=300, figsize=(10,6.2))
@@ -194,7 +201,7 @@ ax.set_xlabel(r'Flagella length [$\mu$m]')
 ax.set_ylabel(r'Number of data')
 ax.set_xlim([4, 13])
 ax.set_ylim([0, 30])
-ax.figure.savefig(pdfFolder + '/Flagella-length-PDF.pdf')
+ax.figure.savefig(pdfFolder / f"{tstamp:s}-Flagella-length-PDF.pdf")
 
 fig1,ax1 = plt.subplots(dpi=300, figsize=(10,6.5))
 ax1.plot(np.sort(flagella_all_length),
@@ -204,7 +211,7 @@ ax1.set_xlabel(r'Flagella length [$\mu$m]')
 ax1.set_ylabel(r'Cumulative Probability')
 ax1.set_ylim([0, 1])
 ax1.set_xlim([4, 13])
-# ax1.figure.savefig(pdfFolder + '/Flagella-length-CDF.pdf')
+ax1.figure.savefig(pdfFolder + f"{tstamp:s}-Flagella-length-CDF.pdf")
 
 #%% Compute A, B, and D
 kB = 1.380649e-23  # J / K
