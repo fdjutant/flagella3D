@@ -1,17 +1,21 @@
 """
 aggregate data from all datasets and plot diffusion constants
+
+Also generate PDF figure for supplement showing all diffusion/codiffusion coefficients
 """
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
-plt.rcParams['text.usetex'] = True
-plt.rcParams.update({'font.size': 14})
+# plt.rcParams['text.usetex'] = True
+plt.rcParams.update({'font.size': 10})
 from matplotlib.transforms import Bbox
 import numpy as np
 import zarr
 import re
 from scipy.optimize import least_squares
 from pathlib import Path
+
+plt.ioff()
 
 fontsize_big = 24
 fontsize_small = 16
@@ -64,26 +68,44 @@ for n_msd_points_used_in_fit in pts_in_fit:
                 axs_lab[ii][jj].set_title(f"D({ii:d}, {jj:d})", fontsize=fontsize_small)
 
     # body-frame diffusion constants
-    figh_body = plt.figure(figsize=(25, 15))
-    figh_body.suptitle(f"Diffusion and codiffusion coefficients in body frame, MSD fits use the first {n_msd_points_used_in_fit:d} points",
-                       fontsize=fontsize_big)
-    grid = figh_body.add_gridspec(nrows=6, ncols=6, hspace=0.6, wspace=0.6)
-    axs = [[[] for x in range(6)] for y in range(6)]
+    figh_body = plt.figure(figsize=(20, 15))
+    # figh_body.suptitle(f"Diffusion and codiffusion coefficients in body frame, MSD fits use the first {n_msd_points_used_in_fit:d} points",
+    #                    fontsize=fontsize_big)
+    grid = figh_body.add_gridspec(nrows=6, ncols=6, hspace=0.1, wspace=0.6)
+    axs_body = [[[] for x in range(6)] for y in range(6)]
     for ii in range(6):
         for jj in range(6):
             if ii >= jj:
-                axs[ii][jj] = figh_body.add_subplot(grid[ii, jj])
+                axs_body[ii][jj] = figh_body.add_subplot(grid[ii, jj])
+
+                # x labels and x ticks
                 if ii == 5:
-                    axs[ii][jj].set_xlabel("viscosity (mPa $\cdot$ s)", fontsize=fontsize_small)
-
-                if ii < 3 and jj < 3:
-                    axs[ii][jj].set_ylabel("D ($\mu m^2 / s$)", fontsize=fontsize_small)
-                elif ii >=3 and jj >= 3:
-                    axs[ii][jj].set_ylabel("D (rad$^2 / s$)", fontsize=fontsize_small)
+                    axs_body[ii][jj].set_xlabel("viscosity (mPa $\cdot$ s)", fontsize=fontsize_small)
                 else:
-                    axs[ii][jj].set_ylabel("D (rad $\cdot$ $\mu m / s$)", fontsize=fontsize_small)
+                    axs_body[ii][jj].set_xticklabels([])
+                    axs_body[ii][jj].set_xticks([])
 
-                axs[ii][jj].set_title(f"D({ii:d}, {jj:d})", fontsize=fontsize_small)
+                # titles
+                if ii < 3:
+                    script1 = f"n_{ii + 1:d}"
+                else:
+                    script1 = f"\psi_{ii + 1 - 3:d}"
+
+                if jj < 3:
+                    script2 = f"n_{jj + 1:d}"
+                else:
+                    script2 = f"\psi_{jj + 1 - 3:d}"
+
+                dstring = f"$D_{{{script1},{script2:s}}}$"
+                axs_body[ii][jj].set_title(dstring, y=1.0, pad=-17, x=0.75, fontsize=18)
+
+                # y-labels
+                if ii < 3 and jj < 3:
+                    axs_body[ii][jj].set_ylabel(f"($\mu m^2 / s$)", fontsize=12)
+                elif ii >=3 and jj >= 3:
+                    axs_body[ii][jj].set_ylabel(f"(rad$^2 / s$)", fontsize=12)
+                else:
+                    axs_body[ii][jj].set_ylabel(f"(rad $\cdot$ $\mu m / s$)", fontsize=12)
 
     # load data
     d_avg_lab = np.zeros((3, 3, len(patterns)))
@@ -122,13 +144,13 @@ for n_msd_points_used_in_fit in pts_in_fit:
             diff_coeffs_unc_body[:, :, jj] = data.diffusion_constants_unc_body[..., n_msd_points_used_in_fit]
 
             # compute non gaussian coefficients
-            for dd in range(3):
-                non_gauss_coeff_lab[dd, :, jj] = np.array(data.fourth_moments_lab[dd, :n_time_lag_max_moments]) / \
-                                                 (3 * np.array(data.msds_lab[dd, dd, :n_time_lag_max_moments]) ** 2) - 1
-
-            for dd in range(6):
-                non_gauss_coeff_body[dd, :, jj] = np.array(data.fourth_moments_body[dd, :n_time_lag_max_moments]) / \
-                                                  (3 * np.array(data.msds_body[dd, dd, :n_time_lag_max_moments]) ** 2) - 1
+            # for dd in range(3):
+            #     non_gauss_coeff_lab[dd, :, jj] = np.array(data.fourth_moments_lab[dd, :n_time_lag_max_moments]) / \
+            #                                      (3 * np.array(data.msds_lab[dd, dd, :n_time_lag_max_moments]) ** 2) - 1
+            #
+            # for dd in range(6):
+            #     non_gauss_coeff_body[dd, :, jj] = np.array(data.fourth_moments_body[dd, :n_time_lag_max_moments]) / \
+            #                                       (3 * np.array(data.msds_body[dd, dd, :n_time_lag_max_moments]) ** 2) - 1
 
             prop_mats[:, :, jj] = data.propulsion_matrix[..., n_msd_points_used_in_fit]
 
@@ -157,46 +179,46 @@ for n_msd_points_used_in_fit in pts_in_fit:
         figh_angles.savefig(data_dir / f"angular_distribution_pattern={p.replace('*', ''):s}.png")
 
         # plot lab frame non-gaussian parameters
-        figh_nongauss = plt.figure(figsize=(25, 5))
-        figh_nongauss.suptitle(f"Non-Gaussian parameters, lab frame, pattern = {p:s}")
-
-        lag_time = np.arange(1, non_gauss_coeff_lab.shape[1] + 1) * data.attrs["volumeteric_exposure_time_ms"] * 1e-3
-        for aa in range(3):
-            ax = figh_nongauss.add_subplot(1, 3, aa + 1)
-            ax.errorbar(lag_time, np.mean(non_gauss_coeff_lab[aa], axis=-1),
-                        yerr=np.std(non_gauss_coeff_lab[aa], axis=-1) / np.sqrt(non_gauss_coeff_lab.shape[1]),
-                        c=np.array([0, 0, 1, 0.5]), marker=".", markersize=10)
-            ax.set_title(f"$G_{{ {aa:d} }}(\delta t)$")
-            ax.set_xlabel("lag time (ms)")
-        figh_nongauss.savefig(data_dir / f"nongauss_parameter_lab_frame_pattern={p.replace('*', ''):s}.png")
+        # figh_nongauss = plt.figure(figsize=(25, 5))
+        # figh_nongauss.suptitle(f"Non-Gaussian parameters, lab frame, pattern = {p:s}")
+        #
+        # lag_time = np.arange(1, non_gauss_coeff_lab.shape[1] + 1) * data.attrs["volumeteric_exposure_time_ms"] * 1e-3
+        # for aa in range(3):
+        #     ax = figh_nongauss.add_subplot(1, 3, aa + 1)
+        #     ax.errorbar(lag_time, np.mean(non_gauss_coeff_lab[aa], axis=-1),
+        #                 yerr=np.std(non_gauss_coeff_lab[aa], axis=-1) / np.sqrt(non_gauss_coeff_lab.shape[1]),
+        #                 c=np.array([0, 0, 1, 0.5]), marker=".", markersize=10)
+        #     ax.set_title(f"$G_{{ {aa:d} }}(\delta t)$")
+        #     ax.set_xlabel("lag time (ms)")
+        # figh_nongauss.savefig(data_dir / f"nongauss_parameter_lab_frame_pattern={p.replace('*', ''):s}.png")
 
 
         # plot body-frame frame non-gaussian parameters
-        figh_nongauss_body = plt.figure(figsize=(25, 5))
-        figh_nongauss_body.suptitle(f"Non-Gaussian parameters, body frame, pattern = {p:s}")
-
-        lag_time = np.arange(1, non_gauss_coeff_body.shape[1] + 1) * data.attrs["volumeteric_exposure_time_ms"] * 1e-3
-        for aa in range(6):
-            ax = figh_nongauss_body.add_subplot(1, 6, aa + 1)
-            ax.errorbar(lag_time, np.mean(non_gauss_coeff_body[aa], axis=-1),
-                    yerr=np.std(non_gauss_coeff_body[aa], axis=-1) / np.sqrt(non_gauss_coeff_body.shape[1]),
-                    c=np.array([0, 0, 1, 0.5]), marker=".", markersize=10)
-            ax.set_title(f"$G_{{ {aa:d} }}(\delta t)$")
-            ax.set_xlabel("lag time (ms)")
-        figh_nongauss_body.savefig(data_dir / f"nongauss_parameter_body_frame_pattern={p.replace('*', ''):s}.png")
+        # figh_nongauss_body = plt.figure(figsize=(25, 5))
+        # figh_nongauss_body.suptitle(f"Non-Gaussian parameters, body frame, pattern = {p:s}")
+        #
+        # lag_time = np.arange(1, non_gauss_coeff_body.shape[1] + 1) * data.attrs["volumeteric_exposure_time_ms"] * 1e-3
+        # for aa in range(6):
+        #     ax = figh_nongauss_body.add_subplot(1, 6, aa + 1)
+        #     ax.errorbar(lag_time, np.mean(non_gauss_coeff_body[aa], axis=-1),
+        #             yerr=np.std(non_gauss_coeff_body[aa], axis=-1) / np.sqrt(non_gauss_coeff_body.shape[1]),
+        #             c=np.array([0, 0, 1, 0.5]), marker=".", markersize=10)
+        #     ax.set_title(f"$G_{{ {aa:d} }}(\delta t)$")
+        #     ax.set_xlabel("lag time (ms)")
+        # figh_nongauss_body.savefig(data_dir / f"nongauss_parameter_body_frame_pattern={p.replace('*', ''):s}.png")
 
         # plot body frame diffusion constants
         for aa in range(6):
             for bb in range(6):
                 if aa >= bb:
                     # zero line
-                    axs[aa][bb].plot(xlims, [0, 0], c=np.array([0, 0, 0, 0.5]), linewidth=5)
+                    axs_body[aa][bb].plot(xlims, [0, 0], c=np.array([0, 0, 0, 0.5]), linewidth=5)
 
                     # jitter plot
                     scale = np.min(np.diff(xtics)) / 10
                     x_coord = visc + np.random.uniform(-scale, scale, size=len(diff_coeffs_body[aa, bb]))
 
-                    axs[aa][bb].errorbar(x_coord, diff_coeffs_body[aa, bb], yerr=diff_coeffs_unc_body[aa, bb],
+                    axs_body[aa][bb].errorbar(x_coord, diff_coeffs_body[aa, bb], yerr=diff_coeffs_unc_body[aa, bb],
                                          c=np.array([0, 0, 1, 0.25]), marker=".", markersize=10, linestyle="")
 
                     # mean value
@@ -208,11 +230,14 @@ for n_msd_points_used_in_fit in pts_in_fit:
                     d_stdm[aa, bb, ii] = stdm
                     d_stdm[bb, aa, ii] = stdm
 
-                    axs[aa][bb].errorbar(visc, mean_val, xerr=0.*visc, yerr=stdm, c=np.array([1, 0, 0, 0.5]),
+                    axs_body[aa][bb].errorbar(visc, mean_val, xerr=0.*visc, yerr=stdm, c=np.array([1, 0, 0, 0.5]),
                                          marker=".", markersize=15, linestyle="")
 
-                    axs[aa][bb].set_xlim(xlims)
-                    axs[aa][bb].set_xticks(xtics)
+                    axs_body[aa][bb].set_xlim(xlims)
+                    axs_body[aa][bb].set_xticks(xtics)
+
+                    if aa != 5:
+                        axs_body[aa][bb].set_xticks([])
 
         # plot lab frame diffusion constants
         for aa in range(3):
@@ -258,21 +283,26 @@ for n_msd_points_used_in_fit in pts_in_fit:
         propulsion_mat_from_avg_unc[..., ii] = kb * T * dinv_unc
         avg_propulsion_mat = np.mean(prop_mats, axis=-1)
 
-
+    # cleanup figure before saving
+    for dd in range(6):
+        figh_body.align_ylabels([a[dd] for a in axs_body[dd:]])
 
     figh_body.savefig(data_dir / f"diffusion_constant_body_frame_summary_msd_pts={n_msd_points_used_in_fit:d}.png")
+    figh_body.savefig(data_dir / f"diffusion_constant_body_frame_summary_msd_pts={n_msd_points_used_in_fit:d}.pdf",
+                      format="pdf", bbox_inches="tight")
+
     figh_lab.savefig(data_dir / f"diffusion_constant_lab_frame_summary_msd_pts={n_msd_points_used_in_fit:d}.png")
 
     # draw tables of diffusion constants
     columns = ["$n_1$", "$n_2$", "$n_3$", "$\phi_1$", "$\phi_2$", "$\phi_3$"]
     rows = columns
 
-    figh_body = plt.figure(figsize=(25, 15))
-    figh_body.suptitle(f"diffusion constants, MSD points used in fit = {n_msd_points_used_in_fit:d}", fontsize=fontsize_big)
-    grid = figh_body.add_gridspec(nrows=3, ncols=1, hspace=0.4)
+    figh_body_table = plt.figure(figsize=(25, 15))
+    figh_body_table.suptitle(f"diffusion constants, MSD points used in fit = {n_msd_points_used_in_fit:d}", fontsize=fontsize_big)
+    grid = figh_body_table.add_gridspec(nrows=3, ncols=1, hspace=0.4)
 
     for kk in range(3):
-        ax = figh_body.add_subplot(grid[kk, 0])
+        ax = figh_body_table.add_subplot(grid[kk, 0])
         ax.set_title(f"$\eta$ = {viscosities[kk]:.3f} mPa $\cdot$ s", fontsize=fontsize_small)
         ax.set_axis_off()
 
@@ -319,16 +349,16 @@ for n_msd_points_used_in_fit in pts_in_fit:
         #         else:
         #             cells[(ii, jj)].visible_edges = ""
 
-    figh_body.savefig(data_dir / f"diffusion_constant_table_msd_pts={n_msd_points_used_in_fit:d}.png")
+    figh_body_table.savefig(data_dir / f"diffusion_constant_table_msd_pts={n_msd_points_used_in_fit:d}.png")
 
     # propulsion matrix
-    figh_body = plt.figure(figsize=(25, 15))
-    figh_body.suptitle(f"Propulsion matrix, MSD points used in fit = {n_msd_points_used_in_fit:d}",
+    figh_body_prop = plt.figure(figsize=(25, 15))
+    figh_body_prop.suptitle(f"Propulsion matrix, MSD points used in fit = {n_msd_points_used_in_fit:d}",
                        fontsize=fontsize_big)
-    grid = figh_body.add_gridspec(nrows=3, ncols=1, hspace=0.4)
+    grid = figh_body_prop.add_gridspec(nrows=3, ncols=1, hspace=0.4)
 
     for kk in range(3):
-        ax = figh_body.add_subplot(grid[kk, 0])
+        ax = figh_body_prop.add_subplot(grid[kk, 0])
         ax.set_title(f"$\eta$ = {viscosities[kk]:.3f} mPa $\cdot$ s", fontsize=fontsize_small)
         ax.set_axis_off()
 
@@ -361,4 +391,6 @@ for n_msd_points_used_in_fit in pts_in_fit:
                        fontsize=fontsize_small)  # todo: fontsize label doesn't seem to do anything...
         # loc="center")
 
-        figh_body.savefig(data_dir / f"propulsion_matrix_table_msd_pts={n_msd_points_used_in_fit:d}.png")
+        figh_body_prop.savefig(data_dir / f"propulsion_matrix_table_msd_pts={n_msd_points_used_in_fit:d}.png")
+
+plt.show()

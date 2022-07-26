@@ -12,7 +12,8 @@ import numpy as np
 import zarr
 
 # prefix = "suc70-h30-03-A"
-prefix = "suc40-h15-04-B"
+# prefix = "suc40-h15-04-B"
+prefix = "suc40-h15-03-A"
 
 root_dir = Path(r"\\10.206.26.21\flagella_project")
 thresholdFolder = root_dir / "threshold-labKit"
@@ -39,7 +40,7 @@ fitImage = data.helix_fit
 # #############################
 
 # %% View image, threshold, and fit together
-viewer = napari.Viewer(ndisplay=3)
+viewer = napari.Viewer(ndisplay=3, title=f"{str(proc_folder.name):s} {prefix:s}")
 
 viewer.add_image(img[frame_start:frame_end], name="deskewed intensity",
                  contrast_limits=[np.percentile(img[img > 0], 95),

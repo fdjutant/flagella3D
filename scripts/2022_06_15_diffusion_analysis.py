@@ -205,45 +205,88 @@ for file_index in range(len(fnames)):
 
         # ##########################
         # Curve fit helix projection
+        # note that the curve fit is to a right handed function, but the helix is left handed
+        # however, this is still correct because there is a discrepancy between the coordinate system we view
+        # the helix in and the coordinate system we use numerically
+        # the point is: typically when we look at the helix we take the smallest y-value in the upper left
+        # and higher y-values going down. Then if we form a volume by stacking the z on top of this
+        # we wind up with a left-handed coordinate system
+        # so this means the helix will "look right handed" in that coordinate system
         # ##########################
         def cosine_fn(pts_on_n1, a):  # model for "y" projection (on xz plane)
             return a[0] * np.cos(a[1] * pts_on_n1 + a[2])
 
-
         def sine_fn(pts_on_n1, a):  # model for "z" projection (on xy plane)
             return a[0] * np.sin(a[1] * pts_on_n1 + a[2])
 
-
+        # the sum of squares of the cost function will be minimized
         def cost_fn(a):
             cost = np.concatenate((cosine_fn(pts_on_n1, a) - pts_on_m2,
-                                   sine_fn(pts_on_n1, a) - pts_on_m3)) / pts_on_n1.size
+                                   sine_fn(pts_on_n1, a) - pts_on_m3))\
+                   / pts_on_n1.size
             return cost
 
 
         def jacobian_fn(a):  # Cost gradient
-            dy = cosine_fn(pts_on_n1, a) - pts_on_m2
-            dz = sine_fn(pts_on_n1, a) - pts_on_m3
+            npts = pts_on_n1.size
 
-            g0 = dy * np.cos(a[1] * pts_on_n1 + a[2]) + \
-                 dz * np.sin(a[1] * pts_on_n1 + a[2])
-            g2 = -dy * np.sin(a[1] * pts_on_n1 + a[2]) + \
-                 dz * np.cos(a[1] * pts_on_n1 + a[2])
-            g1 = pts_on_n1 * g2
+            g0 = np.concatenate((np.cos(a[1] * pts_on_n1 + a[2]),
+                                 np.sin(a[1] * pts_on_n1 + a[2])), axis=0) / npts
+            g1 = np.concatenate((-pts_on_n1 * np.sin(a[1] * pts_on_n1 + a[2]),
+                                  pts_on_n1 * np.cos(a[1] * pts_on_n1 + a[2])), axis=0) / npts
+            g2 = np.concatenate((-np.sin(a[1] * pts_on_n1 + a[2]),
+                                  np.cos(a[1] * pts_on_n1 + a[2])), axis=0) / npts
 
-            return np.array([g0.sum(), g1.sum(), g2.sum()]) * 2 / len(pts_on_n1)
+            return np.stack((g0, g1, g2), axis=1)
 
         # [amplitude, wave_number, phase]
-        init_params = np.array([1.65, 0.28, np.pi / 10])
-        lower_bounds = [1.5, 0.25, -np.inf]
-        upper_bounds = [2.5, 0.3, np.inf]
+        init_params = np.array([1.65, 0.28, 0])
+        # lower_bounds = [1.5, 0.25, -np.inf]
+        # upper_bounds = [2.5, 0.3, np.inf]
+        lower_bounds = [0, -0.5, -np.inf]
+        upper_bounds = [2.5, 0.5, np.inf]
+
+        # test jacobian
+        # jfn = []
+        # jnum = []
+        # ds = 1e-5
+        # for ii in range(3):
+        #     jfn.append(jacobian_fn(init_params))
+        #
+        #     p_low = init_params.copy()
+        #     p_low[ii] -= ds
+        #     p_high = init_params.copy()
+        #     p_high[ii] += ds
+        #
+        #     jnum.append((cost_fn(p_high) - cost_fn(p_low)) / (2*ds))
+
 
         # fit and store results
         results_fit = least_squares(lambda p: cost_fn([p[0], p[1], p[2]]),
                                     init_params[0:3],
-                                    bounds=(lower_bounds[0:3], upper_bounds[0:3]))
+                                    bounds=(lower_bounds[0:3], upper_bounds[0:3]),
+                                    jac=jacobian_fn)
 
         fit_params = results_fit["x"]
         helix_fit_params[frame, :] = fit_params
+
+        # plot results
+        # figh = plt.figure()
+        # figh.suptitle(f"fit params = {fit_params}")
+        # grid = figh.add_gridspec(nrows=1, ncols=2)
+        # r1_interp = np.linspace(np.min(pts_on_n1), np.max(pts_on_n1), 1000)
+        #
+        # ax = figh.add_subplot(grid[0, 0])
+        # ax.plot(pts_on_n1, pts_on_m2, '.')
+        # ax.plot(r1_interp, cosine_fn(r1_interp, fit_params), 'r')
+        # ax.set_xlabel("$R_1$")
+        # ax.set_ylabel("$R_2$")
+        #
+        # ax = figh.add_subplot(grid[0, 1])
+        # ax.plot(pts_on_n1, pts_on_m3, '.')
+        # ax.plot(r1_interp, sine_fn(r1_interp, fit_params), 'r')
+        # ax.set_xlabel("$R_1$")
+        # ax.set_ylabel("$R_3$")
 
         # ########################################
         # compute n2 and n3 from phase information
@@ -278,6 +321,8 @@ for file_index in range(len(fnames)):
         zb = sine_fn(x, fit_params) - 0.5 * fit_params[1]  # bottom
 
         # stack the coordinates
+        # t = np.stack((x, yb, zb), axis=1)
+
         fit_P = np.array([x, yb, zb]).transpose()
         fit_P = np.append(fit_P, np.array([x, yb, zm]).transpose(), axis=0)
         fit_P = np.append(fit_P, np.array([x, yb, zt]).transpose(), axis=0)
