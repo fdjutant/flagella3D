@@ -122,6 +122,12 @@ ax.set_ylim([0, 0.05])
 plt.show()
 ax.figure.savefig(pdfFolder + '\D-trans-MT.pdf')
 
+#%% Mean length and diffusion constants ratio
+print(np.mean(flagella_length_mean))
+print(sem(flagella_length_mean))
+print(np.mean(Dpar/Dperp))
+print(sem(Dpar/Dperp))
+
 #%% rotation
 mean_PY = np.mean(Drot)
 std_PY = sem(Drot)
