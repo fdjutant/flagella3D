@@ -23,6 +23,7 @@ fontsize_small = 16
 pts_in_fit = [10]
 kb = 1.380649e-23
 T = 273 + 25
+overwrite_pdfs = False
 
 # data_dir = Path(r"\\10.206.26.21\flagella_project\2022_06_16_13;43;26_processed_data")
 # data_dir = Path(r"\\10.206.26.21\flagella_project\2022_06_16_17;15;48_processed_data")
@@ -116,6 +117,9 @@ for n_msd_points_used_in_fit in pts_in_fit:
     propulsion_mat_from_avg_unc = np.zeros(d_avg.shape)
     avg_propulsion_mat = np.zeros(d_avg.shape)
     viscosities = np.zeros((len(patterns)))
+
+    helix_mean_lens = []
+    helix_unc_lens = []
     for ii, p in enumerate(patterns):
         data_files = list(data_dir.glob(p + ".zarr"))
 
@@ -136,6 +140,9 @@ for n_msd_points_used_in_fit in pts_in_fit:
 
         for jj in range(len(data_files)):
             data = zarr.open(str(data_files[jj]), "r")
+
+            helix_mean_lens.append(np.mean(data.lengths))
+            helix_unc_lens.append(np.std(data.lengths))
 
             diff_coeffs_lab[:, :, jj] = data.diffusion_constants_lab[:, :, n_msd_points_used_in_fit]
             diff_coeffs_unc_lab[:, :, jj] = data.diffusion_constants_unc_lab[:, :, n_msd_points_used_in_fit]
@@ -288,8 +295,10 @@ for n_msd_points_used_in_fit in pts_in_fit:
         figh_body.align_ylabels([a[dd] for a in axs_body[dd:]])
 
     figh_body.savefig(data_dir / f"diffusion_constant_body_frame_summary_msd_pts={n_msd_points_used_in_fit:d}.png")
-    figh_body.savefig(data_dir / f"diffusion_constant_body_frame_summary_msd_pts={n_msd_points_used_in_fit:d}.pdf",
-                      format="pdf", bbox_inches="tight")
+
+    fname_pdf = data_dir / f"diffusion_constant_body_frame_summary_msd_pts={n_msd_points_used_in_fit:d}.pdf"
+    if not fname_pdf.exists() or overwrite_pdfs:
+        figh_body.savefig(fname_pdf, format="pdf", bbox_inches="tight")
 
     figh_lab.savefig(data_dir / f"diffusion_constant_lab_frame_summary_msd_pts={n_msd_points_used_in_fit:d}.png")
 
