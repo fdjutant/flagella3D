@@ -1,4 +1,6 @@
 """
+Determine reduced ABD coefficients for the experiment
+
 Use RFT expression given in Rodenborn et. al https://doi.org/10.1073/pnas.1219831110
 For references on the helix parameters, see Turner et al https://doi.org/10.1128/JB.182.10.2793-2801.2000 and
 Namba et al https://doi.org/10.1038/342648a0
@@ -32,7 +34,9 @@ T = 273 + 25
 
 len_lims = [6, 10]
 patterns = ["suc40*", "suc50*", "suc70*"]
-viscosities = [0.00177, 0.00199, 0.00284] # Pa * s
+# viscosities = [0.00177, 0.00199, 0.00284] # Pa * s # older values, accidentally used in first submission
+viscosities = [0.00177, 0.00241, 0.00343] # Pa * s # corrected values after measurements in supplemental section S7
+# viscosities = [0.00177, 0.0029, 0.00436] # Pa * s # "by eye" estimate of diffusion coefficients from fig. S6A
 diff_mats = [[] for ii in range(len(patterns))]
 for ii in range(len(patterns)):
     files = list(data_dir.glob(f"{patterns[ii]:s}.zarr"))
@@ -122,7 +126,11 @@ a_exp = [prop_mats[ii][0, 0] / viscosities[ii] / (R * 1e-6) for ii in range(len(
 
 cols = ["B /eta*R**2", "D /eta*R**3", "A /eta*R"]
 cols_star = ["B /eta*L*R", "D /eta*L*R**2", "A /eta*L"]
-rows = ["expt average", "expt eta1", "expt eta2", "expt eta3", "lighthill sbt", "johnson sbt", "stokeslets", "GH rft", "lighthill rft"]
+rows = ["expt average",
+        f"expt eta={viscosities[0] * 1e3:.2f} mPa*s",
+        f"expt eta={viscosities[1] * 1e3:.2f} mPa*s",
+        f"expt eta={viscosities[2] * 1e3:.2f} mPa*s",
+        "lighthill sbt", "johnson sbt", "stokeslets", "GH rft", "lighthill rft"]
 # SBT/stokeslet computed using Rodenborn matlab program
 # note: in GUI units are absolute, not fractions of R as might expect output units ssame as Rodenborn
 # non-dimensionalized form however, their program has issues if R is not set to 1

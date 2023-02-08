@@ -14,6 +14,9 @@ contains a record of data analysis and other calculations.
 #### [2022_04_19_diffusion_analysis.py](2022_04_19_diffusion_analysis.py)
 The primary data analysis script
 
+#### [2022_05_19_flagella_rft_calculations.py](2022_05_19_flagella_rft_calculations.py)
+Extract non-dimensionalized propulsion matrices for the table in Fig. 4d
+
 #### [2022_04_27_syn-diffusion.py](2022_04_27_syn-diffusion.py)
 Simulation used in figure S5
 
