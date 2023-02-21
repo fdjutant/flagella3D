@@ -1,3 +1,7 @@
+"""
+Determine viscosity of mixture from data acquired on separate sample of diameter = 100nm beads prepared in
+the same way as the samples
+"""
 #%% Import modules and files
 import sys
 sys.path.insert(0, './modules')

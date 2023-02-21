@@ -35,8 +35,10 @@ T = 273 + 25
 len_lims = [6, 10]
 patterns = ["suc40*", "suc50*", "suc70*"]
 # viscosities = [0.00177, 0.00199, 0.00284] # Pa * s # older values, accidentally used in first submission
-viscosities = [0.00177, 0.00241, 0.00343] # Pa * s # corrected values after measurements in supplemental section S7
+# viscosities = [0.00177, 0.00241, 0.00343] # Pa * s # corrected values after measurements in supplemental section S7
 # viscosities = [0.00177, 0.0029, 0.00436] # Pa * s # "by eye" estimate of diffusion coefficients from fig. S6A
+# viscosities = [0.00217, 0.0028, 0.0045]
+viscosities = [0.00163, 0.0030, 0.00456]
 diff_mats = [[] for ii in range(len(patterns))]
 for ii in range(len(patterns)):
     files = list(data_dir.glob(f"{patterns[ii]:s}.zarr"))

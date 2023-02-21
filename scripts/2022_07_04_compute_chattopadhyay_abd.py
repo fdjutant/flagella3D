@@ -9,7 +9,7 @@ theta = 41 * np.pi / 180
 wavelen = 1.5e-6 # pitch in um
 R = np.tan(theta) * wavelen / (2*np.pi)
 L = 6.5e-6 # length in um
-a = 0.02e-6 # filament radius
+a = 0.01e-6 # filament radius
 
 A = 1.48e-8 # N * s *m / m
 A_unc = 0.04e-8
@@ -25,7 +25,14 @@ b_star_unc = B_unc / (L * R) / eta
 d_star = D / (L * R**2) / eta
 d_star_unc = D_unc / (L * R**2) / eta
 
+eff = B**2 / (4 * A * D)
+eff_unc = np.sqrt((2 * B / (4*A*D) * B_unc)**2 +
+                  (B**2 / (4 * A**2 * D) * A_unc)**2 +
+                  (B**2 / (4 * A * D**2) * D_unc)**2)
+
+print(f"lambda/a = {wavelen/a:.2f}")
 print("averaged experimental values")
 print(f"B*={b_star:.3f}({b_star_unc * 1e3:.0f})")
 print(f"D*={d_star:.3f}({d_star_unc * 1e3:.0f})")
 print(f"A*={a_star:.3f}({a_star_unc * 1e3:.0f})")
+print(f"eff={eff * 1e2:.3f}({eff_unc * 1e2 * 1e3:.0f})")

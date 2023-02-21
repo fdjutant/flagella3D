@@ -8,8 +8,12 @@ from matmatrix import gauss_cdf, gauss_pdf
 import pickle
 from scipy import integrate
 import os.path
+from pathlib import Path
+import datetime
 
 fName = "nT100-nSep11-nFrame3000000" + ".pkl"
+
+tstamp = datetime.datetime.now().strftime('%Y_%m_%d_%H;%M;%S')
 
 
 this_file_dir = os.path.join(os.path.dirname(os.path.abspath("./")),
@@ -19,6 +23,8 @@ path = os.path.join(this_file_dir,
                 'Light-sheet-OPM', 'Result-data',
                 'synthetic-data', fName)
 result_dir = os.path.join(os.path.dirname(os.path.dirname(path)),'PDF')
+
+path = Path()
 
 with open(path, "rb") as f:
       data_loaded = pickle.load(f)
