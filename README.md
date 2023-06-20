@@ -1,4 +1,4 @@
-[![paper](https://www.pnas.org/pb-assets/images/Logos/header-logo/logo-1624644560537.svg)](https://www.pnas.org/doi/10.1073/pnas.2220033120)
+[![paper](https://upload.wikimedia.org/wikipedia/commons/b/b7/PNAS_logo.svg)](https://www.pnas.org/doi/10.1073/pnas.2220033120)
 [![raw data](https://img.shields.io/badge/raw%20data-zenodo-blue.svg)](https://doi.org/10.5281/zenodo.6562089)
 [![Github commit](https://img.shields.io/github/last-commit/QI2lab/mcSIM)](https://github.com/fdjutant/flagella3D)
 
