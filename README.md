@@ -1,5 +1,4 @@
-[![preprint](https://img.shields.io/badge/preprint-arXiv-blue.svg)](https://arxiv.org/abs/2208.13854)
-[![paper](https://img.shields.io/badge/paper-under%20review-blue.svg)](https://arxiv.org/abs/2208.13854)
+[![paper](https://img.shields.io/badge/paper-under%20review-blue.svg)](https://www.pnas.org/eprint/TC5JWNQUP2ZJMYH3AEXN/full)
 [![raw data](https://img.shields.io/badge/raw%20data-zenodo-blue.svg)](https://doi.org/10.5281/zenodo.6562089)
 [![Github commit](https://img.shields.io/github/last-commit/QI2lab/mcSIM)](https://github.com/fdjutant/flagella3D)
 
